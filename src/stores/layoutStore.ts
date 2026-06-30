@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SidebarView = "ssh" | "files" | "sftp";
+export type SidebarView = "ssh" | "files" | "sftp" | "mcp" | "skills" | "plugins";
 
 interface LayoutState {
   leftSidebarVisible: boolean;

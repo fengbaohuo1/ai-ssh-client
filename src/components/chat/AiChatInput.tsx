@@ -44,11 +44,20 @@ function FileIcon() {
   );
 }
 
-export default function AiChatInput() {
+const SLASH_COMMANDS = [
+  { cmd: "/explain", desc: "解释终端输出", icon: "💬" },
+  { cmd: "/fix", desc: "修复错误", icon: "🔧" },
+  { cmd: "/optimize", desc: "优化命令", icon: "⚡" },
+  { cmd: "/analyze", desc: "分析系统状态", icon: "📊" },
+  { cmd: "/shell", desc: "生成 Shell 脚本", icon: "🐚" },
+];
+
+export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
   const [input, setInput] = useState("");
-  const [expanded, setExpanded] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
   const [model, setModel] = useState("claude-opus-4.8");
   const [effort, setEffort] = useState("medium");
+  const [searchOn, setSearchOn] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dispatch = useChatDispatch();
 
@@ -107,62 +116,98 @@ export default function AiChatInput() {
 
           {/* ===== 工具栏行 ===== */}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-subtle)]">
-            {/* 左侧：附件按钮 + 展开 */}
-            <div className="flex items-center gap-1">
-              {/* 展开/收起按钮 */}
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className={`flex items-center justify-center w-6 h-6 rounded-md transition-all duration-200
-                  ${expanded
-                    ? "bg-[var(--surface-active)] text-[var(--text-primary)] rotate-45"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
-                  }`}
-                title={expanded ? "收起" : "更多"}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
+            {/* 左侧：附件按钮 + / 指令 */}
+            <div className="flex items-center gap-0.5 relative">
+              {[
+                { icon: <LinkIcon />, title: "添加链接" },
+                { icon: <ImageIcon />, title: "上传图片" },
+                { icon: <FileIcon />, title: "上传文件" },
+              ].map((btn) => (
+                <button
+                  key={btn.title}
+                  className="flex items-center justify-center w-6 h-6 rounded-md
+                             text-[var(--text-secondary)] hover:text-[var(--text-primary)]
+                             hover:bg-[var(--surface-hover)] transition-colors"
+                  title={btn.title}
+                >
+                  {btn.icon}
+                </button>
+              ))}
 
-              {/* 附件按钮 — 动画展开/收起 */}
-              <div
-                className={`flex items-center gap-1 overflow-hidden transition-all duration-200
-                  ${expanded ? "w-[108px] opacity-100 ml-1" : "w-0 opacity-0"}`}
-              >
-                {[
-                  { icon: <LinkIcon />, title: "添加链接" },
-                  { icon: <ImageIcon />, title: "上传图片" },
-                  { icon: <FileIcon />, title: "上传文件" },
-                ].map((btn) => (
-                  <button
-                    key={btn.title}
-                    className="flex items-center justify-center w-6 h-6 rounded-md
-                               text-[var(--text-secondary)] hover:text-[var(--text-primary)]
-                               hover:bg-[var(--surface-hover)] transition-colors"
-                    title={btn.title}
-                  >
-                    {btn.icon}
-                  </button>
-                ))}
-              </div>
+              {/* / 指令按钮 — relative 锚点供下拉框定位 */}
+              <span className="relative">
+                <button
+                  onClick={() => setShowCommands(!showCommands)}
+                  className={`flex items-center justify-center w-7 h-6 rounded-md text-sm font-medium transition-all duration-150
+                    ${showCommands
+                      ? "bg-[var(--surface-active)] text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                    }`}
+                  title="指令"
+                >
+                  /
+                </button>
+
+                {/* ===== / 指令下拉列表 ===== */}
+                {showCommands && (
+                  <div className="absolute left-0 bottom-full mb-1 z-50 bg-[var(--surface-dropdown)]
+                                  border border-[var(--border-default)] rounded-lg shadow-xl py-1 min-w-[210px]">
+                    {SLASH_COMMANDS.map((c) => (
+                      <button
+                        key={c.cmd}
+                        onClick={() => {
+                          setInput(c.cmd + " ");
+                          setShowCommands(false);
+                          textareaRef.current?.focus();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs
+                                   text-[var(--text-primary)] hover:bg-[var(--surface-active)]
+                                   transition-colors text-left"
+                      >
+                        <span className="text-sm flex-shrink-0">{c.icon}</span>
+                        <span className="font-mono font-medium text-[var(--accent-bg)] text-[11px]">{c.cmd}</span>
+                        <span className="text-[var(--text-secondary)] ml-auto">{c.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </span>
+
+              {/* Dropdown backdrop */}
+              {showCommands && (
+                <div className="fixed inset-0 z-40" onClick={() => setShowCommands(false)} />
+              )}
             </div>
 
-            {/* 右侧：发送按钮 */}
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0
-                         bg-[var(--accent-bg)] hover:bg-[var(--accent-hover)] text-white
-                         disabled:opacity-30 disabled:cursor-not-allowed
-                         transition-all duration-150 active:scale-95"
-              title="发送"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
+            {/* 右侧：停止 / 发送按钮 */}
+            {isStreaming ? (
+              <button
+                onClick={() => dispatch({ type: "STOP_STREAMING" })}
+                className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0
+                           bg-[var(--status-error)] hover:bg-red-600 text-white
+                           transition-all duration-150 active:scale-95"
+                title="停止生成"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0
+                           bg-[var(--accent-bg)] hover:bg-[var(--accent-hover)] text-white
+                           disabled:opacity-30 disabled:cursor-not-allowed
+                           transition-all duration-150 active:scale-95"
+                title="发送"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -171,11 +216,7 @@ export default function AiChatInput() {
       <div className="flex items-center gap-3 px-4 pb-2.5">
         <div className="flex items-center gap-1.5">
           <label className="text-[10px] text-[var(--text-tertiary)] flex-shrink-0">模型</label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className={selectClass}
-          >
+          <select value={model} onChange={(e) => setModel(e.target.value)} className={selectClass}>
             {LLM_MODELS.map((m) => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
@@ -183,16 +224,29 @@ export default function AiChatInput() {
         </div>
         <div className="flex items-center gap-1.5">
           <label className="text-[10px] text-[var(--text-tertiary)] flex-shrink-0">推理</label>
-          <select
-            value={effort}
-            onChange={(e) => setEffort(e.target.value)}
-            className={selectClass}
-          >
+          <select value={effort} onChange={(e) => setEffort(e.target.value)} className={selectClass}>
             {EFFORT_LEVELS.map((e) => (
               <option key={e.id} value={e.id}>{e.name}</option>
             ))}
           </select>
         </div>
+        {/* Web search toggle */}
+        <button
+          onClick={() => setSearchOn(!searchOn)}
+          className={`flex items-center gap-1.5 text-[11px] rounded-md px-2 py-1 transition-all duration-150
+            ${searchOn
+              ? "bg-[var(--surface-active)] text-[var(--accent-bg)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+            }`}
+          title="联网搜索"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          <span className="hidden sm:inline">搜索</span>
+        </button>
       </div>
     </div>
   );

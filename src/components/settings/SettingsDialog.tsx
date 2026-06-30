@@ -86,6 +86,28 @@ export default function SettingsDialog({ open, onClose }: Props) {
               ))}
             </div>
           </div>
+
+          {/* Keyboard Shortcuts */}
+          <div>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-[0.04em]">
+              快捷键
+            </label>
+            <div className="space-y-1.5">
+              {[
+                { keys: "Enter", desc: "发送消息" },
+                { keys: "Shift + Enter", desc: "换行" },
+                { keys: "Ctrl + K", desc: "清空输入框" },
+              ].map((shortcut) => (
+                <div key={shortcut.keys} className="flex items-center justify-between text-xs">
+                  <span className="text-[var(--text-primary)]">{shortcut.desc}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-[var(--surface-input)] text-[var(--text-secondary)]
+                                  border border-[var(--border-default)] text-[10px] font-mono">
+                    {shortcut.keys}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
