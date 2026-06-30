@@ -1,0 +1,42 @@
+import type { SshServer } from "../types";
+
+export const mockServers: SshServer[] = [
+  {
+    id: "1",
+    name: "生产服务器-Web",
+    host: "192.168.1.100",
+    port: 22,
+    username: "root",
+    authMethod: "password",
+    tags: ["生产环境", "Web"],
+    lastConnected: Date.now() - 3600000,
+  },
+  {
+    id: "2",
+    name: "测试服务器",
+    host: "10.0.0.50",
+    port: 22,
+    username: "admin",
+    authMethod: "key",
+    tags: ["测试环境"],
+    lastConnected: Date.now() - 86400000,
+  },
+  {
+    id: "3",
+    name: "数据库服务器",
+    host: "db.internal.example.com",
+    port: 2222,
+    username: "dbadmin",
+    authMethod: "password",
+    tags: ["生产环境", "数据库"],
+  },
+  {
+    id: "4",
+    name: "开发机",
+    host: "dev.local",
+    port: 22,
+    username: "dev",
+    authMethod: "key",
+    tags: ["开发环境"],
+  },
+];
