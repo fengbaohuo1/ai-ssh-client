@@ -60,34 +60,36 @@ export default function SshServerItem({ server }: Props) {
   return (
     <>
       <div
-        className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-[#37373d]
-                    transition-colors border-b border-[#2d2d2d] last:border-b-0"
+        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors duration-100
+                    border-b border-[var(--border-subtle)] last:border-b-0
+                    hover:bg-[var(--surface-hover)]"
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
-        {/* 连接状态指示灯 */}
+        {/* Connection status dot */}
         <div
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            isConnected ? "bg-green-400" : "bg-[#858585]"
+          className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-300 ${
+            isConnected ? "bg-[var(--status-success)] shadow-[0_0_6px_var(--status-success)]" : "bg-[var(--text-tertiary)]"
           }`}
           title={isConnected ? "已连接" : "未连接"}
         />
 
-        {/* 服务器信息 */}
+        {/* Server info */}
         <div className="flex-1 min-w-0">
-          <div className="text-xs text-[#cccccc] truncate font-medium">{server.name}</div>
-          <div className="text-[11px] text-[#858585] truncate">
+          <div className="text-xs text-[var(--text-primary)] truncate">{server.name}</div>
+          <div className="text-[11px] text-[var(--text-tertiary)] truncate mt-0.5 font-mono">
             {server.username}@{server.host}:{server.port}
           </div>
         </div>
 
-        {/* 标签 */}
+        {/* Tags */}
         {server.tags && server.tags.length > 0 && (
           <div className="flex gap-1 flex-shrink-0">
             {server.tags.slice(0, 2).map((tag) => (
               <span
                 key={tag}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-[#3c3c3c] text-[#999]"
+                className="text-[10px] px-1.5 py-0.5 rounded-[3px] bg-[var(--surface-input)] text-[var(--text-secondary)]
+                           border border-[var(--border-subtle)]"
               >
                 {tag}
               </span>
@@ -96,36 +98,36 @@ export default function SshServerItem({ server }: Props) {
         )}
       </div>
 
-      {/* 右键菜单 */}
+      {/* Context menu */}
       {contextMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={closeMenu} onContextMenu={(e) => { e.preventDefault(); closeMenu(); }} />
           <div
-            className="fixed z-50 bg-[#2b2b2b] border border-[#3c3c3c] rounded shadow-lg py-1 min-w-[140px]"
+            className="fixed z-50 bg-[var(--surface-dropdown)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 min-w-[150px] overflow-hidden"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
               onClick={handleConnect}
-              className="w-full text-left px-3 py-1.5 text-xs text-[#cccccc] hover:bg-[#094771]"
+              className="w-full text-left px-3.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--surface-active)] transition-colors"
             >
               连接
             </button>
             <button
               onClick={handleEdit}
-              className="w-full text-left px-3 py-1.5 text-xs text-[#cccccc] hover:bg-[#094771]"
+              className="w-full text-left px-3.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--surface-active)] transition-colors"
             >
               编辑
             </button>
             <button
               onClick={handleCopyAddress}
-              className="w-full text-left px-3 py-1.5 text-xs text-[#cccccc] hover:bg-[#094771]"
+              className="w-full text-left px-3.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--surface-active)] transition-colors"
             >
               复制地址
             </button>
-            <div className="border-t border-[#3c3c3c] my-0.5" />
+            <div className="border-t border-[var(--border-default)] my-0.5" />
             <button
               onClick={handleDelete}
-              className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-[#5a1d1d]"
+              className="w-full text-left px-3.5 py-1.5 text-xs text-[var(--status-error)] hover:bg-[var(--status-danger-hover)] transition-colors"
             >
               {showDeleteConfirm ? "确认删除？" : "删除"}
             </button>

@@ -27,9 +27,9 @@ export default function TerminalView({ tab }: Props) {
 
   if (tab.status === "error") {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1e1e] text-[#858585]">
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--surface-app)] text-[var(--text-secondary)]">
         <div className="text-2xl mb-3">⚠️</div>
-        <p className="text-sm text-red-400">连接失败</p>
+        <p className="text-sm text-[var(--status-error)]">连接失败</p>
         <p className="text-xs mt-1">{tab.errorMessage || "未知错误"}</p>
       </div>
     );
@@ -37,8 +37,8 @@ export default function TerminalView({ tab }: Props) {
 
   if (tab.status === "connecting") {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1e1e1e] text-[#858585]">
-        <div className="w-8 h-8 border-2 border-[#3c3c3c] border-t-[#0078d4] rounded-full animate-spin mb-3" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--surface-app)] text-[var(--text-secondary)]">
+        <div className="w-8 h-8 border-2 border-[var(--border-default)] border-t-[var(--accent-bg)] rounded-full animate-spin mb-3" />
         <p className="text-sm">正在连接到 {tab.serverName}...</p>
       </div>
     );

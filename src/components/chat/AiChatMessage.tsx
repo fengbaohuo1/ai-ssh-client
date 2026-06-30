@@ -10,34 +10,34 @@ export default function AiChatMessage({ message }: Props) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+        className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
           isUser
-            ? "bg-[#0078d4] text-white rounded-br-sm"
-            : "bg-[#333333] text-[#cccccc] rounded-bl-sm"
+            ? "bg-[var(--accent-bg)] text-white rounded-br-md"
+            : "bg-[var(--surface-input)] text-[var(--text-primary)] rounded-bl-md border border-[var(--border-subtle)]"
         }`}
       >
-        {/* 消息内容 - 简单 Markdown 渲染 */}
+        {/* Message content with markdown */}
         <div className="whitespace-pre-wrap break-words">
           {renderMarkdown(message.content)}
         </div>
 
-        {/* 流式光标 */}
+        {/* Streaming cursor */}
         {message.streaming && (
-          <span className="inline-block w-1.5 h-3.5 bg-[#cccccc] ml-0.5 animate-pulse align-middle" />
+          <span className="inline-block w-1.5 h-3.5 bg-[var(--text-primary)] ml-0.5 animate-pulse align-middle rounded-sm" />
         )}
 
-        {/* 状态指示 */}
+        {/* Status */}
         {message.status === "sending" && (
-          <span className="text-[10px] text-blue-300 ml-2">发送中...</span>
+          <span className="text-[10px] text-[var(--status-info)] ml-2">发送中...</span>
         )}
         {message.status === "error" && (
-          <span className="text-[10px] text-red-400 ml-2">发送失败</span>
+          <span className="text-[10px] text-[var(--status-error)] ml-2">发送失败</span>
         )}
 
-        {/* 时间戳 */}
+        {/* Timestamp */}
         <div
-          className={`text-[10px] mt-1 ${
-            isUser ? "text-blue-200" : "text-[#6a6a6a]"
+          className={`text-[10px] mt-1.5 ${
+            isUser ? "text-white/50" : "text-[var(--text-tertiary)]"
           }`}
         >
           {formatTime(message.timestamp)}
@@ -47,44 +47,42 @@ export default function AiChatMessage({ message }: Props) {
   );
 }
 
-// ===== 简单 Markdown 渲染 =====
+// ===== Simple Markdown Rendering =====
 function renderMarkdown(content: string): React.ReactNode {
   if (!content) return null;
 
-  // 处理代码块 ```code```
   const parts: React.ReactNode[] = [];
   const segments = content.split(/(```[\s\S]*?```)/g);
 
   segments.forEach((seg, i) => {
     if (seg.startsWith("```") && seg.endsWith("```")) {
-      // 代码块
       const code = seg.slice(3, -3).replace(/^[a-z]*\n?/, "");
       parts.push(
         <pre
           key={i}
-          className="bg-[#1e1e1e] rounded px-2 py-1.5 my-1 overflow-x-auto text-[11px] border border-[#3c3c3c]"
+          className="bg-[var(--surface-app)] rounded-lg px-3 py-2 my-1.5 overflow-x-auto text-[11px]
+                     border border-[var(--border-default)] font-mono"
         >
           <code>{code.trim()}</code>
         </pre>
       );
     } else {
-      // 行内代码 `code`
       const inlineParts = seg.split(/(`[^`]+`)/g).map((inline, j) => {
         if (inline.startsWith("`") && inline.endsWith("`")) {
           return (
             <code
               key={j}
-              className="bg-[#1e1e1e] text-[#e5e510] px-1 rounded text-[11px]"
+              className="bg-[var(--surface-app)] text-[var(--terminal-cyan)] px-1.5 py-0.5 rounded-md text-[11px] font-mono border border-[var(--border-subtle)]"
             >
               {inline.slice(1, -1)}
             </code>
           );
         }
-        // 加粗 **text**
+        // Bold **text**
         const boldParts = inline.split(/(\*\*[^*]+\*\*)/g).map((bold, k) => {
           if (bold.startsWith("**") && bold.endsWith("**")) {
             return (
-              <strong key={k} className="font-semibold">
+              <strong key={k} className="font-semibold text-[var(--text-primary)]">
                 {bold.slice(2, -2)}
               </strong>
             );
@@ -100,7 +98,7 @@ function renderMarkdown(content: string): React.ReactNode {
   return <>{parts}</>;
 }
 
-// ===== 时间格式化 =====
+// ===== Time Formatting =====
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   const now = new Date();

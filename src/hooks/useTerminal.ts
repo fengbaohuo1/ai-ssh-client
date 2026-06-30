@@ -2,40 +2,21 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { useThemeStore } from "../stores/themeStore";
 import "@xterm/xterm/css/xterm.css";
 
 export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>) {
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const terminalTheme = useThemeStore((s) => s.terminalTheme);
 
+  // 创建 Terminal 实例（仅挂载时执行一次）
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const term = new Terminal({
-      theme: {
-        background: "#1e1e1e",
-        foreground: "#d4d4d4",
-        cursor: "#ffffff",
-        cursorAccent: "#1e1e1e",
-        selectionBackground: "#264f78",
-        black: "#000000",
-        red: "#cd3131",
-        green: "#0dbc79",
-        yellow: "#e5e510",
-        blue: "#2472c8",
-        magenta: "#bc3fbc",
-        cyan: "#11a8cd",
-        white: "#e5e5e5",
-        brightBlack: "#666666",
-        brightRed: "#f14c4c",
-        brightGreen: "#23d18b",
-        brightYellow: "#f5f543",
-        brightBlue: "#3b8eea",
-        brightMagenta: "#d670d6",
-        brightCyan: "#29b8db",
-        brightWhite: "#e5e5e5",
-      },
+      theme: terminalTheme,
       fontSize: 13,
       fontFamily: '"Cascadia Code", "Fira Code", Consolas, "Courier New", monospace',
       cursorBlink: true,
@@ -52,7 +33,6 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
 
     term.open(container);
 
-    // 自适应容器大小
     const resizeObserver = new ResizeObserver(() => {
       try {
         fitAddon.fit();
@@ -61,7 +41,7 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       }
     });
     resizeObserver.observe(container);
-    // 初始适配
+
     requestAnimationFrame(() => {
       try { fitAddon.fit(); } catch { /* ignore */ }
     });
@@ -75,7 +55,16 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef]);
+
+  // 主题变化时动态更新终端颜色
+  useEffect(() => {
+    const term = terminalRef.current;
+    if (term) {
+      term.options.theme = terminalTheme;
+    }
+  }, [terminalTheme]);
 
   return {
     terminal: terminalRef,

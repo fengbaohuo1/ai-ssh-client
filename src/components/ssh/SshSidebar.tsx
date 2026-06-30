@@ -4,10 +4,10 @@ import SshServerDialog from "./SshServerDialog";
 
 export default function SshSidebar() {
   return (
-    <div className="flex flex-col h-full bg-[#252526] border-r border-[#3c3c3c]">
-      {/* 标题栏 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#3c3c3c]">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#cccccc]">
+    <div className="flex flex-col h-full bg-[var(--surface-panel)] border-r border-[var(--border-default)]">
+      {/* Title bar */}
+      <div className="flex items-center px-4 h-[38px] border-b border-[var(--border-default)] shrink-0">
+        <h2 className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-[0.06em]">
           SSH 服务器
         </h2>
       </div>

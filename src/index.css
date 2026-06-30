@@ -1,1 +1,164 @@
 @import "tailwindcss";
+
+@layer base {
+  :root, [data-theme="dark"] {
+    /* ===== App Surfaces — warmer dark, easier on eyes ===== */
+    --surface-app: #1b1c1f;
+    --surface-panel: #222327;
+    --surface-hover: #2c2d32;
+    --surface-active: #0d4a7a;
+    --surface-input: #2c2d32;
+    --surface-dropdown: #25262a;
+    --surface-tab-active: #1b1c1f;
+    --surface-tab-inactive: #26272b;
+    --surface-scrollbar: rgba(130, 130, 140, 0.32);
+    --surface-scrollbar-hover: rgba(130, 130, 140, 0.52);
+
+    /* ===== Activity Bar ===== */
+    --activity-bar-bg: #292a2e;
+    --activity-bar-text: #7b7c81;
+    --activity-bar-active: #e8e8ec;
+    --activity-bar-hover: #c0c0c8;
+
+    /* ===== Header / Title Bar ===== */
+    --header-bg: #2d2e32;
+    --header-text: #d0d0d8;
+
+    /* ===== Text ===== */
+    --text-primary: #d0d0d8;
+    --text-secondary: #8b8c91;
+    --text-tertiary: #636469;
+    --text-accent: #ffffff;
+    --text-link: #4a9eff;
+
+    /* ===== Borders ===== */
+    --border-default: #343539;
+    --border-subtle: #2a2b2f;
+    --border-focus: #4a9eff;
+    --border-accent: #4a9eff;
+
+    /* ===== Accent / Interactive ===== */
+    --accent-bg: #4a9eff;
+    --accent-hover: #5babff;
+    --accent-selection: #0d4a7a;
+    --accent-text: #ffffff;
+    --focus-ring: 0 0 0 1px #4a9eff;
+
+    /* ===== Status Colors ===== */
+    --status-success: #3fb950;
+    --status-warning: #d29922;
+    --status-error: #f85149;
+    --status-info: #58a6ff;
+    --status-danger-hover: #490202;
+
+    /* ===== AI Thinking Indicator ===== */
+    --ai-glow-1: #4a9eff;
+    --ai-glow-2: #7c5ce7;
+
+    /* ===== Terminal Foreground / Background ===== */
+    --terminal-bg: #1b1c1f;
+    --terminal-fg: #d4d4d8;
+    --terminal-cursor: #ffffff;
+    --terminal-cursor-accent: #1b1c1f;
+    --terminal-selection-bg: #264f78;
+
+    /* ===== Terminal ANSI Colors ===== */
+    --terminal-black: #000000;
+    --terminal-red: #cd3131;
+    --terminal-green: #0dbc79;
+    --terminal-yellow: #e5e510;
+    --terminal-blue: #2472c8;
+    --terminal-magenta: #bc3fbc;
+    --terminal-cyan: #11a8cd;
+    --terminal-white: #e5e5e5;
+    --terminal-bright-black: #666666;
+    --terminal-bright-red: #f14c4c;
+    --terminal-bright-green: #23d18b;
+    --terminal-bright-yellow: #f5f543;
+    --terminal-bright-blue: #3b8eea;
+    --terminal-bright-magenta: #d670d6;
+    --terminal-bright-cyan: #29b8db;
+    --terminal-bright-white: #e5e5e5;
+  }
+
+  /* Future light theme override */
+  [data-theme="light"] {
+    /* ===== App Surfaces ===== */
+    --surface-app: #f5f5f5;
+    --surface-panel: #ffffff;
+    --surface-hover: #e8e8e8;
+    --surface-active: #d0e4f7;
+    --surface-input: #f0f0f0;
+    --surface-dropdown: #ffffff;
+    --surface-tab-active: #ffffff;
+    --surface-tab-inactive: #ececec;
+    --surface-scrollbar: rgba(100, 100, 100, 0.28);
+    --surface-scrollbar-hover: rgba(100, 100, 100, 0.45);
+
+    /* ===== Activity Bar ===== */
+    --activity-bar-bg: #e8e8e8;
+    --activity-bar-text: #616161;
+    --activity-bar-active: #1a1a1a;
+    --activity-bar-hover: #333333;
+
+    /* ===== Header / Title Bar ===== */
+    --header-bg: #ededed;
+    --header-text: #1a1a1a;
+
+    /* ===== Text ===== */
+    --text-primary: #1a1a1a;
+    --text-secondary: #616161;
+    --text-tertiary: #8a8a8a;
+    --text-accent: #1a1a1a;
+    --text-link: #0066cc;
+
+    /* ===== Borders ===== */
+    --border-default: #d4d4d4;
+    --border-subtle: #e8e8e8;
+    --border-focus: #0066cc;
+    --border-accent: #0066cc;
+
+    /* ===== Accent / Interactive ===== */
+    --accent-bg: #0066cc;
+    --accent-hover: #0055aa;
+    --accent-selection: #d0e4f7;
+    --accent-text: #ffffff;
+    --focus-ring: 0 0 0 1px #0066cc;
+
+    /* ===== Status Colors ===== */
+    --status-success: #1a7f37;
+    --status-warning: #9a6700;
+    --status-error: #cf222e;
+    --status-info: #0969da;
+    --status-danger-hover: #ffd4d4;
+
+    /* ===== AI Thinking Indicator ===== */
+    --ai-glow-1: #0066cc;
+    --ai-glow-2: #5c3fbe;
+
+    /* ===== Terminal Foreground / Background ===== */
+    --terminal-bg: #ffffff;
+    --terminal-fg: #1a1a1a;
+    --terminal-cursor: #1a1a1a;
+    --terminal-cursor-accent: #ffffff;
+    --terminal-selection-bg: #d0e4f7;
+
+    /* ===== Terminal ANSI Colors (light-adapted) ===== */
+    --terminal-black: #000000;
+    --terminal-red: #cd3131;
+    --terminal-green: #0d7a3e;
+    --terminal-yellow: #8a6d00;
+    --terminal-blue: #0451a5;
+    --terminal-magenta: #bc05bc;
+    --terminal-cyan: #0598bc;
+    --terminal-white: #e5e5e5;
+    --terminal-bright-black: #666666;
+    --terminal-bright-red: #f14c4c;
+    --terminal-bright-green: #23a55e;
+    --terminal-bright-yellow: #bf8c00;
+    --terminal-bright-blue: #1a6fd4;
+    --terminal-bright-magenta: #d670d6;
+    --terminal-bright-cyan: #29b8db;
+    --terminal-bright-white: #f5f5f5;
+  }
+}

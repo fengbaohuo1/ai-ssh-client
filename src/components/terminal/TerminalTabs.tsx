@@ -7,61 +7,65 @@ export default function TerminalTabs() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex items-end bg-[#252526] border-b border-[#3c3c3c] overflow-x-auto">
-      <div className="flex h-9">
+    <div className="flex items-end bg-[var(--surface-panel)] border-b border-[var(--border-default)]">
+      <div className="flex h-[34px] overflow-x-auto flex-1 min-w-0">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           return (
             <div
               key={tab.id}
               onClick={() => dispatch({ type: "SET_ACTIVE_TAB", id: tab.id })}
-              className={`group flex items-center gap-2 px-4 h-9 text-xs cursor-pointer select-none
-                border-r border-[#2d2d2d] transition-colors
+              className={`group relative flex items-center gap-2 px-3.5 text-xs cursor-pointer select-none
+                border-r border-[var(--border-subtle)] transition-colors duration-100 flex-shrink-0
                 ${isActive
-                  ? "bg-[#1e1e1e] text-[#cccccc] border-t border-t-[#0078d4]"
-                  : "bg-[#2d2d2d] text-[#858585] hover:bg-[#37373d]"
+                  ? "bg-[var(--surface-tab-active)] text-[var(--text-primary)]"
+                  : "bg-[var(--surface-tab-inactive)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                 }`}
             >
-              {/* 状态指示灯 */}
+              {isActive && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-[var(--accent-bg)]" />
+              )}
               <span
-                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  tab.status === "connected" ? "bg-green-400"
-                  : tab.status === "connecting" ? "bg-yellow-400 animate-pulse"
-                  : tab.status === "error" ? "bg-red-400"
-                  : "bg-[#858585]"
-                }`}
+                className={`relative w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                  tab.status === "connected" ? "bg-[var(--status-success)]"
+                  : tab.status === "connecting" ? "bg-[var(--status-warning)]"
+                  : tab.status === "error" ? "bg-[var(--status-error)]"
+                  : "bg-[var(--text-tertiary)]"
+                } ${tab.status === "connecting" ? "animate-pulse" : ""}`}
               />
-
               <span className="truncate max-w-[120px]">{tab.serverName}</span>
-
-              {/* 关闭按钮 */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   dispatch({ type: "CLOSE_TAB", id: tab.id });
                 }}
-                className="ml-1 w-4 h-4 flex items-center justify-center rounded
-                           text-[#858585] hover:text-[#cccccc] hover:bg-[#5a1d1d]
-                           opacity-0 group-hover:opacity-100 transition-opacity leading-none"
+                className="flex items-center justify-center w-4 h-4 rounded-sm
+                           text-[var(--text-secondary)] hover:text-[var(--text-primary)]
+                           hover:bg-[var(--status-danger-hover)]
+                           opacity-0 group-hover:opacity-100 transition-all duration-100"
                 title="关闭"
               >
-                ×
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
           );
         })}
       </div>
-
-      {/* 新标签按钮 */}
       <button
         onClick={() =>
           dispatch({ type: "OPEN_TAB", serverName: `终端 ${tabs.length + 1}` })
         }
-        className="flex items-center justify-center w-8 h-9 text-sm text-[#858585]
-                   hover:text-[#cccccc] hover:bg-[#37373d] transition-colors flex-shrink-0"
+        className="flex items-center justify-center w-[34px] h-[34px] text-sm text-[var(--text-secondary)]
+                   hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors flex-shrink-0"
         title="新建终端"
       >
-        +
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
       </button>
     </div>
   );
