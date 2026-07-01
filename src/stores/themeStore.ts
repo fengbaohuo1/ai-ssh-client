@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ITheme } from "@xterm/xterm";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export interface TerminalTheme extends ITheme {}
 
@@ -63,6 +64,12 @@ export const useThemeStore = create<ThemeState>((set) => ({
 
   setTheme: (theme) => {
     document.documentElement.setAttribute("data-theme", theme);
+    // 同步 Tauri 原生窗口标题栏主题（仅桌面端生效）
+    try {
+      getCurrentWindow().setTheme(theme === "dark" ? "dark" : "light");
+    } catch {
+      // 浏览器开发模式下无 Tauri API，静默忽略
+    }
     set({
       currentTheme: theme,
       terminalTheme: theme === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME,

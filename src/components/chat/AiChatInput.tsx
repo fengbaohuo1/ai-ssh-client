@@ -115,9 +115,9 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
           </div>
 
           {/* ===== 工具栏行 ===== */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-subtle)] min-w-0">
             {/* 左侧：附件按钮 + / 指令 */}
-            <div className="flex items-center gap-0.5 relative">
+            <div className="flex items-center gap-0.5 relative flex-shrink-0">
               {[
                 { icon: <LinkIcon />, title: "添加链接" },
                 { icon: <ImageIcon />, title: "上传图片" },
@@ -179,8 +179,8 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
               )}
             </div>
 
-            {/* 右侧：停止 / 发送按钮 */}
-            {isStreaming ? (
+            {/* 右侧：停止 / 发送按钮 — 始终不收缩 */}
+            <div className="flex-shrink-0">{isStreaming ? (
               <button
                 onClick={() => dispatch({ type: "STOP_STREAMING" })}
                 className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0
@@ -210,6 +210,7 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
             )}
           </div>
         </div>
+      </div>
       </div>
 
       {/* ===== 模型/推理栏（输入区外部下面） ===== */}
