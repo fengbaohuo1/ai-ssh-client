@@ -33,7 +33,7 @@ export default function MainLayout() {
                 <Allotment.Pane minSize={300} priority={LayoutPriority.High}>
                   <TerminalPanel />
                 </Allotment.Pane>
-                <Allotment.Pane minSize={300} preferredSize={380} visible={rightVisible}>
+                <Allotment.Pane minSize={320} visible={rightVisible}>
                   <AiChatPanel />
                 </Allotment.Pane>
               </Allotment>
