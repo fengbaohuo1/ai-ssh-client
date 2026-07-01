@@ -8,7 +8,7 @@ AI SSH Client — 基于 Tauri v2 的桌面端 SSH/AI 客户端。前端 React 1
 
 当需要撰写技术总结、对比分析、学习笔记时：
 - 总结文档统一放到 `D:\study\notes\` 目录下
-- **本项目文档**放 `D:\study\notes\ai-ssh\`，通用工具类放 `D:\study\notes\tool\`
+- **本项目文档**放 `D:\study\notes\ai-ssh\`
 - 遵循 `D:\study\notes\CLAUDE.md` 中的编写规则（一篇一主题、先查后写、互相引用、概念优先）
 - 善用 Mermaid 图表辅助理解，能画图的不堆文字
 - 文档命名用中文，简短描述主题
