@@ -27,13 +27,13 @@ export default function MainLayout() {
             <div className="flex flex-row flex-1 overflow-hidden">
               <ActivityBar onOpenSettings={() => setSettingsOpen(true)} />
               <Allotment proportionalLayout={false}>
-                <Allotment.Pane minSize={280} preferredSize={380} visible={leftVisible}>
+                <Allotment.Pane minSize={200} preferredSize={280} visible={leftVisible}>
                   <LeftSidebar />
                 </Allotment.Pane>
-                <Allotment.Pane minSize={400} priority={LayoutPriority.High}>
+                <Allotment.Pane minSize={300} priority={LayoutPriority.High}>
                   <TerminalPanel />
                 </Allotment.Pane>
-                <Allotment.Pane minSize={300} preferredSize={320} visible={rightVisible}>
+                <Allotment.Pane minSize={300} preferredSize={380} visible={rightVisible}>
                   <AiChatPanel />
                 </Allotment.Pane>
               </Allotment>
