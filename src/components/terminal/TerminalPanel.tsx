@@ -3,15 +3,29 @@ import TerminalTabs from "./TerminalTabs";
 import TerminalView from "./TerminalView";
 
 export default function TerminalPanel() {
-  const { tabs, activeTabId } = useTerminalState();
+  const { serverTabs, activeServerId, localTabs, activeTabId, activeLocalTabId } = useTerminalState();
+
+  // Determine which tabs to display
+  const currentTabs = activeServerId
+    ? (serverTabs[activeServerId] || [])
+    : localTabs;
+
+  const currentActiveTabId = activeServerId ? activeTabId : activeLocalTabId;
+  const isEmpty = currentTabs.length === 0;
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface-app)]">
-      <TerminalTabs />
+      {/* Only show tab bar when there are tabs */}
+      {!isEmpty && (
+        <TerminalTabs
+          tabs={currentTabs}
+          activeTabId={currentActiveTabId}
+          serverId={activeServerId}
+        />
+      )}
 
       <div className="flex-1 relative">
-        {tabs.length === 0 ? (
-          /* Empty state */
+        {isEmpty ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <div className="w-14 h-14 rounded-2xl bg-[var(--surface-input)] flex items-center justify-center mb-5">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -23,16 +37,15 @@ export default function TerminalPanel() {
             </div>
             <p className="text-sm text-[var(--text-primary)] mb-1 font-medium">终端</p>
             <p className="text-xs text-[var(--text-secondary)]">
-              从左侧双击服务器以连接，或点击上方 + 新建终端
+              从左侧双击服务器以连接
             </p>
           </div>
         ) : (
-          /* 渲染所有标签页，非活跃的隐藏 */
-          tabs.map((tab) => (
+          currentTabs.map((tab) => (
             <div
               key={tab.id}
               className="absolute inset-0"
-              style={{ display: tab.id === activeTabId ? "block" : "none" }}
+              style={{ display: tab.id === currentActiveTabId ? "block" : "none" }}
             >
               <TerminalView tab={tab} />
             </div>
