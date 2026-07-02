@@ -4,15 +4,14 @@ import TerminalView from "./TerminalView";
 
 export default function TerminalPanel() {
   const { tabs, activeTabId } = useTerminalState();
-  const activeTab = tabs.find((t) => t.id === activeTabId);
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface-app)]">
       <TerminalTabs />
 
       <div className="flex-1 relative">
-        {!activeTab ? (
-          /* Empty state — refined, subtle */
+        {tabs.length === 0 ? (
+          /* Empty state */
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <div className="w-14 h-14 rounded-2xl bg-[var(--surface-input)] flex items-center justify-center mb-5">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -28,7 +27,16 @@ export default function TerminalPanel() {
             </p>
           </div>
         ) : (
-          <TerminalView key={activeTab.id} tab={activeTab} />
+          /* 渲染所有标签页，非活跃的隐藏 */
+          tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className="absolute inset-0"
+              style={{ display: tab.id === activeTabId ? "block" : "none" }}
+            >
+              <TerminalView tab={tab} />
+            </div>
+          ))
         )}
       </div>
     </div>
