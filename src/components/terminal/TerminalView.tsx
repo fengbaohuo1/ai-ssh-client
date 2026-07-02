@@ -11,7 +11,7 @@ interface Props {
 export default function TerminalView({ tab }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dispatch = useTerminalDispatch();
-  const { terminal: terminalRef } = useTerminal(containerRef);
+  const { terminal: terminalRef, fitAddon } = useTerminal(containerRef);
 
   const { connectWs, sendData, disconnectWs } = useTerminalWebSocket(
     terminalRef,
@@ -38,6 +38,33 @@ export default function TerminalView({ tab }: Props) {
       };
     }
   }, [terminalRef, tab.serverId]);
+
+  // 用 ResizeObserver 监听容器从 display:none 恢复 visible
+  useEffect(() => {
+    const container = containerRef.current;
+    const fit = fitAddon.current;
+    if (!container || !fit) return;
+
+    // 轮询容器可见性，visible 时触发 fit
+    const observer = new ResizeObserver(() => {
+      if (container.offsetHeight > 0) {
+        try { fit.fit(); } catch {}
+      }
+    });
+    observer.observe(container);
+
+    // 初始延迟触发一次 fit
+    const timer = setTimeout(() => {
+      if (container.offsetHeight > 0) {
+        try { fit.fit(); } catch {}
+      }
+    }, 100);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [fitAddon]);
 
   return (
     <div className="absolute inset-0">
