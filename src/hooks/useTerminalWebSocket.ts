@@ -7,7 +7,7 @@ export function useTerminalWebSocket(
   onStatusChange?: (status: "connecting" | "connected" | "disconnected" | "error") => void
 ) {
   const wsRef = useRef<WebSocket | null>(null);
-  const intentionalRef = useRef(false);
+  const hasConnectedRef = useRef(false);  // track if WebSocket ever connected successfully
 
   const connectWs = useCallback(() => {
     if (!connectionId) return;
@@ -15,9 +15,9 @@ export function useTerminalWebSocket(
     const url = `ws://localhost:8091/ws/terminal/${connectionId}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
-    intentionalRef.current = false;
 
     ws.onopen = () => {
+      hasConnectedRef.current = true;
       onStatusChange?.("connected");
       terminalRef.current?.focus();
     };
@@ -28,9 +28,11 @@ export function useTerminalWebSocket(
 
     ws.onclose = () => {
       onStatusChange?.("disconnected");
-      if (!intentionalRef.current) {
+      // Only write disconnect message if we were previously connected
+      if (hasConnectedRef.current) {
         terminalRef.current?.write("\r\n\x1b[31m[连接已断开]\x1b[0m\r\n");
       }
+      hasConnectedRef.current = false;
     };
 
     ws.onerror = () => {
@@ -45,7 +47,7 @@ export function useTerminalWebSocket(
   }, []);
 
   const disconnectWs = useCallback(() => {
-    intentionalRef.current = true;
+    hasConnectedRef.current = false;  // prevent onclose from showing message
     wsRef.current?.close();
     wsRef.current = null;
   }, []);

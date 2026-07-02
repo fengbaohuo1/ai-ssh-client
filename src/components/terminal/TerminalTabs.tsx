@@ -1,4 +1,5 @@
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
+import { useSshActions } from "../../contexts/SshContext";
 import type { TerminalTab } from "../../types";
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 
 export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
   const dispatch = useTerminalDispatch();
+  const { disconnectServer } = useSshActions();
 
   if (tabs.length === 0) return null;
 
@@ -65,6 +67,10 @@ export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (serverId) {
+                    if (tabs.length === 1) {
+                      // Last tab - auto disconnect SSH
+                      disconnectServer(serverId);
+                    }
                     dispatch({ type: "CLOSE_SERVER_TAB", serverId, tabId: tab.id });
                   } else {
                     dispatch({ type: "CLOSE_LOCAL_TAB", tabId: tab.id });
