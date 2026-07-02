@@ -17,13 +17,16 @@ export default function SshServerItem({ server }: Props) {
 
   const isConnected = server.status === 1;
 
-  const handleDoubleClick = useCallback(() => {
-    terminalDispatch({
-      type: "OPEN_TAB",
-      serverId: server.id,
-      serverName: server.name,
-    });
-  }, [server.id, server.name, terminalDispatch]);
+  const handleDoubleClick = async () => {
+    const res = await connectServer(server.id);
+    if (res?.code === "0000") {
+      terminalDispatch({
+        type: "OPEN_TAB",
+        serverId: server.id,
+        serverName: server.name,
+      });
+    }
+  };
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
