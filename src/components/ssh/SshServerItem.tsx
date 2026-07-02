@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
-import { useSshDispatch } from "../../contexts/SshContext";
+import { useSshDispatch, useSshActions } from "../../contexts/SshContext";
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
 import { deleteConnection } from "../../api/ssh";
 
@@ -11,10 +11,11 @@ interface Props {
 export default function SshServerItem({ server }: Props) {
   const sshDispatch = useSshDispatch();
   const terminalDispatch = useTerminalDispatch();
+  const { connectServer, disconnectServer } = useSshActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const isConnected = !!server.lastConnected;
+  const isConnected = server.status === 1;
 
   const handleDoubleClick = useCallback(() => {
     terminalDispatch({
@@ -34,8 +35,16 @@ export default function SshServerItem({ server }: Props) {
     setShowDeleteConfirm(false);
   }, []);
 
-  const handleConnect = () => {
-    terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+  const handleConnect = async () => {
+    const res = await connectServer(server.id);
+    if (res?.code === "0000") {
+      terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+    }
+    closeMenu();
+  };
+
+  const handleDisconnect = async () => {
+    await disconnectServer(server.id);
     closeMenu();
   };
 
@@ -120,6 +129,14 @@ export default function SshServerItem({ server }: Props) {
             >
               连接
             </button>
+            {isConnected && (
+              <button
+                onClick={handleDisconnect}
+                className="w-full text-left px-3.5 py-1.5 text-xs text-[var(--status-warning)] hover:bg-[var(--status-danger-hover)] transition-colors"
+              >
+                断开
+              </button>
+            )}
             <button
               onClick={handleEdit}
               className="w-full text-left px-3.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--surface-active)] transition-colors"

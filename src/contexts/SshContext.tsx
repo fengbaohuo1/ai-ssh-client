@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type Dispatch, type ReactNode } from "react";
 import type { SshServer } from "../types";
 import { authTypeToMethod, authMethodToType } from "../types";
-import { createConnection, listConnections, deleteConnection as apiDeleteConnection } from "../api/ssh";
+import { createConnection, listConnections, deleteConnection as apiDeleteConnection, connect as apiConnect, disconnect as apiDisconnect } from "../api/ssh";
 import type { ConnectionResponse } from "../api/ssh";
 
 // ===== State & Actions =====
@@ -195,5 +195,31 @@ export function useSshActions() {
     }
   }, [dispatch]);
 
-  return { fetchServers, addServer, removeServer };
+  const connectServer = useCallback(async (connectionId: string) => {
+    dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 2 }); // connecting
+    try {
+      const res = await apiConnect(connectionId);
+      if (res.code === "0000") {
+        dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 1 }); // connected
+      } else {
+        dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 3 }); // failed
+      }
+      return res;
+    } catch {
+      dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 3 }); // failed
+    }
+  }, [dispatch]);
+
+  const disconnectServer = useCallback(async (connectionId: string) => {
+    try {
+      const res = await apiDisconnect(connectionId);
+      if (res.code === "0000") {
+        dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 0 }); // disconnected
+      }
+    } catch (err) {
+      console.error("断开失败", err);
+    }
+  }, [dispatch]);
+
+  return { fetchServers, addServer, removeServer, connectServer, disconnectServer };
 }
