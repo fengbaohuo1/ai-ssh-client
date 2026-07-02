@@ -16,12 +16,17 @@ export default function SshServerItem({ server }: Props) {
 
   const isConnected = server.status === 1;
 
+  const handleRowClick = () => {
+    terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+  };
+
   const handleDoubleClick = useCallback(async () => {
+    terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
     try {
       const res = await connectServer(server.id);
       if (res?.code === "0000") {
         terminalDispatch({
-          type: "OPEN_TAB",
+          type: "OPEN_SERVER_TAB",
           serverId: server.id,
           serverName: server.name,
         });
@@ -42,10 +47,11 @@ export default function SshServerItem({ server }: Props) {
   }, []);
 
   const handleConnect = useCallback(async () => {
+    terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
     try {
       const res = await connectServer(server.id);
       if (res?.code === "0000") {
-        terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+        terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
       }
     } catch (err) {
       console.error("连接失败", err);
@@ -83,6 +89,7 @@ export default function SshServerItem({ server }: Props) {
         className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors duration-100
                     border-b border-[var(--border-subtle)] last:border-b-0
                     hover:bg-[var(--surface-hover)]"
+        onClick={handleRowClick}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
@@ -93,9 +100,10 @@ export default function SshServerItem({ server }: Props) {
             if (isConnected) {
               await disconnectServer(server.id);
             } else {
+              terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
               const res = await connectServer(server.id);
               if (res?.code === "0000") {
-                terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+                terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
               }
             }
           }}
