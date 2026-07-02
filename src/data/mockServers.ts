@@ -10,6 +10,8 @@ export const mockServers: SshServer[] = [
     authMethod: "password",
     tags: ["生产环境", "Web"],
     lastConnected: Date.now() - 3600000,
+    status: 0,
+    userId: "mock-user",
   },
   {
     id: "2",
@@ -20,6 +22,8 @@ export const mockServers: SshServer[] = [
     authMethod: "key",
     tags: ["测试环境"],
     lastConnected: Date.now() - 86400000,
+    status: 0,
+    userId: "mock-user",
   },
   {
     id: "3",
@@ -29,6 +33,8 @@ export const mockServers: SshServer[] = [
     username: "dbadmin",
     authMethod: "password",
     tags: ["生产环境", "数据库"],
+    status: 0,
+    userId: "mock-user",
   },
   {
     id: "4",
@@ -38,5 +44,7 @@ export const mockServers: SshServer[] = [
     username: "dev",
     authMethod: "key",
     tags: ["开发环境"],
+    status: 0,
+    userId: "mock-user",
   },
 ];

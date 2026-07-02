@@ -60,6 +60,8 @@ export default function SshServerDialog() {
       password: authMethod === "password" ? password : undefined,
       tags: tags.length > 0 ? tags : undefined,
       lastConnected: editingServer?.lastConnected,
+      status: editingServer?.status ?? 0,
+      userId: editingServer?.userId ?? "",
     };
 
     if (isEdit) {
