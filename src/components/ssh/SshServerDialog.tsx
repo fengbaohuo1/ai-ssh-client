@@ -1,20 +1,18 @@
 import { useState, useEffect } from "react";
-import { useSshState, useSshDispatch } from "../../contexts/SshContext";
-import type { SshServer } from "../../types";
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
-}
+import { useSshState, useSshDispatch, useSshActions } from "../../contexts/SshContext";
+import { authMethodToType } from "../../types";
+import { createConnection } from "../../api/ssh";
 
 export default function SshServerDialog() {
   const { isDialogOpen, editingServer } = useSshState();
   const dispatch = useSshDispatch();
+  const { fetchServers } = useSshActions();
 
   const [name, setName] = useState("");
   const [host, setHost] = useState("");
   const [port, setPort] = useState(22);
   const [username, setUsername] = useState("");
-  const [authMethod, setAuthMethod] = useState<SshServer["authMethod"]>("password");
+  const [authMethod, setAuthMethod] = useState<"password" | "key">("password");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -46,28 +44,33 @@ export default function SshServerDialog() {
 
   if (!isDialogOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !host.trim() || !username.trim()) return;
 
-    const serverData: SshServer = {
-      id: editingServer?.id || generateId(),
-      name: name.trim(),
-      host: host.trim(),
-      port,
-      username: username.trim(),
-      authMethod,
-      password: authMethod === "password" ? password : undefined,
-      tags: tags.length > 0 ? tags : undefined,
-      lastConnected: editingServer?.lastConnected,
-      status: editingServer?.status ?? 0,
-      userId: editingServer?.userId ?? "",
-    };
-
     if (isEdit) {
-      dispatch({ type: "UPDATE_SERVER", server: serverData });
-    } else {
-      dispatch({ type: "ADD_SERVER", server: serverData });
+      alert("编辑功能暂未实现，请删除后重新添加");
+      return;
+    }
+
+    try {
+      const res = await createConnection({
+        connectionName: name.trim(),
+        host: host.trim(),
+        port,
+        username: username.trim(),
+        authType: authMethodToType(authMethod),
+        password: authMethod === "password" ? password : undefined,
+        userId: "default",
+      });
+      if (res.code === "0000") {
+        dispatch({ type: "CLOSE_DIALOG" });
+        fetchServers();
+      } else {
+        alert(res.info);
+      }
+    } catch (err) {
+      alert("创建失败: " + String(err));
     }
   };
 

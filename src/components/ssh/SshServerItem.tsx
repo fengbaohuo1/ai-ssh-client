@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
 import { useSshDispatch } from "../../contexts/SshContext";
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
+import { deleteConnection } from "../../api/ssh";
 
 interface Props {
   server: SshServer;
@@ -43,9 +44,16 @@ export default function SshServerItem({ server }: Props) {
     closeMenu();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (showDeleteConfirm) {
-      sshDispatch({ type: "DELETE_SERVER", id: server.id });
+      try {
+        const res = await deleteConnection(server.id);
+        if (res.code === "0000") {
+          sshDispatch({ type: "DELETE_SERVER", id: server.id });
+        }
+      } catch (err) {
+        console.error("删除失败", err);
+      }
       closeMenu();
     } else {
       setShowDeleteConfirm(true);

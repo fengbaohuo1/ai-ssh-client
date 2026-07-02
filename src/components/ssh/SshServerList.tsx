@@ -2,7 +2,24 @@ import { useSshState } from "../../contexts/SshContext";
 import SshServerItem from "./SshServerItem";
 
 export default function SshServerList() {
-  const { servers, filterText } = useSshState();
+  const { servers, filterText, loading, error } = useSshState();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-6 h-6 border-2 border-[var(--border-default)] border-t-[var(--accent-bg)] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center select-none">
+        <p className="text-xs text-[var(--status-error)] mb-1">加载失败</p>
+        <p className="text-[11px] text-[var(--text-tertiary)]">{error}</p>
+      </div>
+    );
+  }
 
   const filtered = servers.filter((s) => {
     if (!filterText) return true;
