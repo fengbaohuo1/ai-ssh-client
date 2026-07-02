@@ -63,26 +63,62 @@ function terminalReducer(state: TerminalState, action: TerminalAction): Terminal
     }
 
     case "CLOSE_SERVER_TAB": {
-      const filtered = (state.serverTabs[action.serverId] || []).filter(
-        (t) => t.id !== action.tabId,
-      );
+      const tabs = state.serverTabs[action.serverId] || [];
+      const filtered = tabs.filter((t) => t.id !== action.tabId);
       const newServerTabs = { ...state.serverTabs };
       if (filtered.length === 0) {
         delete newServerTabs[action.serverId];
       } else {
         newServerTabs[action.serverId] = filtered;
       }
-      const newActiveId =
-        state.activeTabId === action.tabId
-          ? filtered.length > 0
-            ? filtered[filtered.length - 1].id
-            : null
-          : state.activeTabId;
-      return { ...state, serverTabs: newServerTabs, activeTabId: newActiveId };
+      const closedIndex = tabs.findIndex((t) => t.id === action.tabId);
+      let newActiveId = state.activeTabId;
+      if (state.activeTabId === action.tabId) {
+        if (filtered.length > 0) {
+          // Try the tab just before the closed one, or the first remaining
+          newActiveId = closedIndex > 0 ? tabs[closedIndex - 1].id : filtered[0].id;
+        } else {
+          newActiveId = null;
+        }
+      }
+      return {
+        ...state,
+        serverTabs: newServerTabs,
+        activeTabId: newActiveId,
+        activeServerId:
+          filtered.length === 0 && state.activeServerId === action.serverId
+            ? null
+            : state.activeServerId,
+      };
     }
 
-    case "SET_ACTIVE_TAB":
-      return { ...state, activeTabId: action.id };
+    case "SET_ACTIVE_TAB": {
+      let newActiveServerId: string | null = state.activeServerId;
+      let newActiveLocalTabId: string | null = state.activeLocalTabId;
+      // Search server tabs
+      let found = false;
+      for (const [sid, tabs] of Object.entries(state.serverTabs)) {
+        if (tabs.some((t) => t.id === action.id)) {
+          newActiveServerId = sid;
+          newActiveLocalTabId = null;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // Search local tabs
+        if (state.localTabs.some((t) => t.id === action.id)) {
+          newActiveServerId = null;
+          newActiveLocalTabId = action.id;
+        }
+      }
+      return {
+        ...state,
+        activeTabId: action.id,
+        activeServerId: newActiveServerId,
+        activeLocalTabId: newActiveLocalTabId,
+      };
+    }
 
     case "OPEN_LOCAL_TAB": {
       const newTab: TerminalTab = {
@@ -95,6 +131,7 @@ function terminalReducer(state: TerminalState, action: TerminalAction): Terminal
         localTabs: [...state.localTabs, newTab],
         activeLocalTabId: newTab.id,
         activeTabId: newTab.id,
+        activeServerId: null,
       };
     }
 
@@ -113,6 +150,7 @@ function terminalReducer(state: TerminalState, action: TerminalAction): Terminal
         localTabs: newLocalTabs,
         activeLocalTabId: newActiveLocalId,
         activeTabId: newActiveId,
+        activeServerId: newLocalTabs.length === 0 ? null : state.activeServerId,
       };
     }
 
