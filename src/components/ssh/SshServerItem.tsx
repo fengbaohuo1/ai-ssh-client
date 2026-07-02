@@ -86,13 +86,32 @@ export default function SshServerItem({ server }: Props) {
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
-        {/* Connection status dot */}
-        <div
-          className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-300 ${
-            isConnected ? "bg-[var(--status-success)] shadow-[0_0_6px_var(--status-success)]" : "bg-[var(--text-tertiary)]"
+        {/* Connection toggle switch */}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            if (isConnected) {
+              await disconnectServer(server.id);
+            } else {
+              const res = await connectServer(server.id);
+              if (res?.code === "0000") {
+                terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+              }
+            }
+          }}
+          className={`relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
+            isConnected
+              ? "bg-[var(--status-success)]"
+              : "bg-[var(--text-tertiary)]"
           }`}
-          title={isConnected ? "已连接" : "未连接"}
-        />
+          title={isConnected ? "点击断开" : "点击连接"}
+        >
+          <div
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-sm ${
+              isConnected ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+        </button>
 
         {/* Server info */}
         <div className="flex-1 min-w-0">
