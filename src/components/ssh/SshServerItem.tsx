@@ -93,34 +93,6 @@ export default function SshServerItem({ server }: Props) {
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
-        {/* Connection toggle switch */}
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            if (isConnected) {
-              await disconnectServer(server.id);
-            } else {
-              terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
-              const res = await connectServer(server.id);
-              if (res?.code === "0000") {
-                terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
-              }
-            }
-          }}
-          className={`relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
-            isConnected
-              ? "bg-[var(--status-success)]"
-              : "bg-[var(--text-tertiary)]"
-          }`}
-          title={isConnected ? "点击断开" : "点击连接"}
-        >
-          <div
-            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-sm ${
-              isConnected ? "translate-x-4" : "translate-x-0"
-            }`}
-          />
-        </button>
-
         {/* Server info */}
         <div className="flex-1 min-w-0">
           <div className="text-xs text-[var(--text-primary)] truncate">{server.name}</div>
@@ -143,6 +115,34 @@ export default function SshServerItem({ server }: Props) {
             ))}
           </div>
         )}
+
+        {/* Toggle switch */}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            if (isConnected) {
+              await disconnectServer(server.id);
+            } else {
+              terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+              const res = await connectServer(server.id);
+              if (res?.code === "0000") {
+                terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
+              }
+            }
+          }}
+          className={`relative w-7 h-4 rounded-full transition-colors duration-200 flex-shrink-0 ${
+            isConnected
+              ? "bg-[var(--status-success)]"
+              : "bg-[var(--text-tertiary)]"
+          }`}
+          title={isConnected ? "点击断开" : "点击连接"}
+        >
+          <div
+            className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 shadow-sm ${
+              isConnected ? "translate-x-3" : "translate-x-0"
+            }`}
+          />
+        </button>
       </div>
 
       {/* Context menu */}
