@@ -33,6 +33,21 @@ export default function TerminalTabs() {
                   : "bg-[var(--text-tertiary)]"
                 } ${tab.status === "connecting" ? "animate-pulse" : ""}`}
               />
+              {tab.serverId ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="1.8" className="flex-shrink-0" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                  <circle cx="6" cy="6" r="1" /><circle cx="6" cy="18" r="1" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="1.8" className="flex-shrink-0" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="18" rx="2" />
+                  <path d="M6 7l4 4-4 4" />
+                  <line x1="13" y1="15" x2="17" y2="15" />
+                </svg>
+              )}
               <span className="truncate max-w-[120px]">{tab.serverName}</span>
               <button
                 onClick={(e) => {
