@@ -59,7 +59,7 @@ export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
                 }`} />
 
                 {/* Server name */}
-                <span className="truncate max-w-[120px]">{tab.serverName}</span>
+                <span className="truncate">{tab.serverName}</span>
               </div>
 
               {/* Close button */}
@@ -95,7 +95,10 @@ export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
       <button
         onClick={() => {
           if (serverId) {
-            dispatch({ type: "OPEN_SERVER_TAB", serverId, serverName: tabs[0]?.serverName || "终端" });
+            const baseName = tabs[0]?.serverName || "终端";
+            const tabNumber = tabs.length + 1;
+            const tabName = tabNumber === 1 ? baseName : `${baseName} (${tabNumber})`;
+            dispatch({ type: "OPEN_SERVER_TAB", serverId, serverName: tabName });
           } else {
             dispatch({ type: "OPEN_LOCAL_TAB", serverName: `终端 ${tabs.length + 1}` });
           }
