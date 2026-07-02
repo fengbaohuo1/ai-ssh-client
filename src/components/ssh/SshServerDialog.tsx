@@ -65,7 +65,7 @@ export default function SshServerDialog() {
       });
       if (res.code === "0000") {
         dispatch({ type: "CLOSE_DIALOG" });
-        fetchServers();
+        await fetchServers();
       } else {
         alert(res.info);
       }

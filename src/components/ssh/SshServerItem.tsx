@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
 import { useSshDispatch, useSshActions } from "../../contexts/SshContext";
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
-import { deleteConnection } from "../../api/ssh";
 
 interface Props {
   server: SshServer;
@@ -11,22 +10,26 @@ interface Props {
 export default function SshServerItem({ server }: Props) {
   const sshDispatch = useSshDispatch();
   const terminalDispatch = useTerminalDispatch();
-  const { connectServer, disconnectServer } = useSshActions();
+  const { connectServer, disconnectServer, removeServer } = useSshActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isConnected = server.status === 1;
 
-  const handleDoubleClick = async () => {
-    const res = await connectServer(server.id);
-    if (res?.code === "0000") {
-      terminalDispatch({
-        type: "OPEN_TAB",
-        serverId: server.id,
-        serverName: server.name,
-      });
+  const handleDoubleClick = useCallback(async () => {
+    try {
+      const res = await connectServer(server.id);
+      if (res?.code === "0000") {
+        terminalDispatch({
+          type: "OPEN_TAB",
+          serverId: server.id,
+          serverName: server.name,
+        });
+      }
+    } catch (err) {
+      console.error("连接失败", err);
     }
-  };
+  }, [server.id, server.name, connectServer, terminalDispatch]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -38,13 +41,17 @@ export default function SshServerItem({ server }: Props) {
     setShowDeleteConfirm(false);
   }, []);
 
-  const handleConnect = async () => {
-    const res = await connectServer(server.id);
-    if (res?.code === "0000") {
-      terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+  const handleConnect = useCallback(async () => {
+    try {
+      const res = await connectServer(server.id);
+      if (res?.code === "0000") {
+        terminalDispatch({ type: "OPEN_TAB", serverId: server.id, serverName: server.name });
+      }
+    } catch (err) {
+      console.error("连接失败", err);
     }
     closeMenu();
-  };
+  }, [server.id, connectServer, terminalDispatch, closeMenu]);
 
   const handleDisconnect = async () => {
     await disconnectServer(server.id);
@@ -58,14 +65,7 @@ export default function SshServerItem({ server }: Props) {
 
   const handleDelete = async () => {
     if (showDeleteConfirm) {
-      try {
-        const res = await deleteConnection(server.id);
-        if (res.code === "0000") {
-          sshDispatch({ type: "DELETE_SERVER", id: server.id });
-        }
-      } catch (err) {
-        console.error("删除失败", err);
-      }
+      await removeServer(server.id);
       closeMenu();
     } else {
       setShowDeleteConfirm(true);

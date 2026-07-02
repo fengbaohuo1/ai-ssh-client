@@ -115,6 +115,8 @@ export function SshProvider({ children }: { children: ReactNode }) {
         if (res.code === "0000" && res.data) {
           const servers: SshServer[] = res.data.map(mapResponseToServer);
           dispatch({ type: "SET_SERVERS", servers });
+        } else {
+          dispatch({ type: "SET_ERROR", error: res.info || "获取服务器列表失败" });
         }
       } catch (err) {
         dispatch({ type: "SET_ERROR", error: String(err) });
@@ -151,6 +153,8 @@ export function useSshActions() {
       if (res.code === "0000" && res.data) {
         const servers: SshServer[] = res.data.map(mapResponseToServer);
         dispatch({ type: "SET_SERVERS", servers });
+      } else {
+        dispatch({ type: "SET_ERROR", error: res.info || "获取服务器列表失败" });
       }
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: String(err) });
@@ -215,6 +219,8 @@ export function useSshActions() {
       const res = await apiDisconnect(connectionId);
       if (res.code === "0000") {
         dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 0 }); // disconnected
+      } else {
+        dispatch({ type: "SET_ERROR", error: res.info });
       }
     } catch (err) {
       console.error("断开失败", err);

@@ -8,7 +8,6 @@ export interface SshServer {
   authMethod: "password" | "key";     // ← 转换自 authType（1→password, 2→key）
   password?: string;                   // 仅创建时发送，后端不返回
   tags?: string[];                     // 仅前端本地使用，与服务端无关
-  lastConnected?: number;              // ← 由 status=1 时本地记录
   // 后端同步字段（不为 undefined 时表示已从服务端同步）
   status: number;                      // 0=未连接,1=已连接,2=连接中,3=连接失败
   userId: string;
