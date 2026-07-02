@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { useChatDispatch } from "../../contexts/ChatContext";
+import { useChatDispatch, useChatActions } from "../../contexts/ChatContext";
 
 // ===== Model & Reasoning Effort Options =====
 const LLM_MODELS = [
@@ -60,16 +60,17 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
   const [searchOn, setSearchOn] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dispatch = useChatDispatch();
+  const { sendMessage } = useChatActions();
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
-    if (!trimmed) return;
-    dispatch({ type: "SEND_MESSAGE", content: trimmed });
+    if (!trimmed || isStreaming) return;
+    sendMessage(trimmed);
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [input, dispatch]);
+  }, [input, isStreaming, sendMessage]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
