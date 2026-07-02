@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import type { TerminalTab } from "../../types";
 import { useTerminal } from "../../hooks/useTerminal";
+import { useTerminalWebSocket } from "../../hooks/useTerminalWebSocket";
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
 
 interface Props {
@@ -10,20 +11,33 @@ interface Props {
 export default function TerminalView({ tab }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dispatch = useTerminalDispatch();
-  const { terminal } = useTerminal(containerRef);
+  const { terminal: terminalRef } = useTerminal(containerRef);
 
-  // 连接终端时显示欢迎信息（useEffect 避免渲染期间 dispatch）
-  useEffect(() => {
-    const term = terminal.current;
-    if (term && tab.status === "disconnected") {
-      dispatch({ type: "UPDATE_TAB_STATUS", id: tab.id, status: "connected" });
-      term.writeln(`\x1b[1;36m╔══════════════════════════════════════╗\x1b[0m`);
-      term.writeln(`\x1b[1;36m║\x1b[0m  AI SSH Client - Terminal Ready      \x1b[1;36m║\x1b[0m`);
-      term.writeln(`\x1b[1;36m║\x1b[0m  Server: \x1b[1;33m${tab.serverName.padEnd(27)}\x1b[0m\x1b[1;36m║\x1b[0m`);
-      term.writeln(`\x1b[1;36m╚══════════════════════════════════════╝\x1b[0m`);
-      term.writeln("");
+  const { connectWs, sendData, disconnectWs } = useTerminalWebSocket(
+    terminalRef,
+    tab.serverId || "",
+    (status) => {
+      dispatch({ type: "UPDATE_TAB_STATUS", id: tab.id, status });
     }
-  }, [terminal.current, tab.status, tab.id, tab.serverName, dispatch]);
+  );
+
+  // 挂载时建立 WebSocket 连接
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (terminal && tab.serverId && tab.status !== "connected") {
+      dispatch({ type: "UPDATE_TAB_STATUS", id: tab.id, status: "connecting" });
+      connectWs();
+
+      const disposable = terminal.onData((data) => {
+        sendData(data);
+      });
+
+      return () => {
+        disposable.dispose();
+        disconnectWs();
+      };
+    }
+  }, [terminalRef, tab.serverId]);
 
   if (tab.status === "error") {
     return (
