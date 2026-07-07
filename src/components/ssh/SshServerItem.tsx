@@ -61,6 +61,7 @@ export default function SshServerItem({ server }: Props) {
 
   const handleDisconnect = async () => {
     await disconnectServer(server.id);
+    terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
     closeMenu();
   };
 
@@ -71,6 +72,11 @@ export default function SshServerItem({ server }: Props) {
 
   const handleDelete = async () => {
     if (showDeleteConfirm) {
+      // 如果已连接，先断开
+      if (isConnected) {
+        await disconnectServer(server.id);
+      }
+      terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
       await removeServer(server.id);
       closeMenu();
     } else {
@@ -122,6 +128,7 @@ export default function SshServerItem({ server }: Props) {
             e.stopPropagation();
             if (isConnected) {
               await disconnectServer(server.id);
+              terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
             } else {
               terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
               const res = await connectServer(server.id);
