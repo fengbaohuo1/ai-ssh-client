@@ -1,12 +1,15 @@
 import { useLayoutStore } from "../../stores/layoutStore";
-import { useSshDispatch } from "../../contexts/SshContext";
+import { useSshState, useSshDispatch } from "../../contexts/SshContext";
 
 export default function Header() {
   const toggleLeft = useLayoutStore((s) => s.toggleLeftSidebar);
   const toggleRight = useLayoutStore((s) => s.toggleRightSidebar);
   const rightVisible = useLayoutStore((s) => s.rightSidebarVisible);
   const leftVisible = useLayoutStore((s) => s.leftSidebarVisible);
+  const { activeConnectionId, servers } = useSshState();
   const sshDispatch = useSshDispatch();
+
+  const activeServer = servers.find(s => s.id === activeConnectionId);
 
   return (
     <header className="h-11 flex items-center bg-[var(--header-bg)] border-b border-[var(--border-default)] px-3 gap-2.5 shrink-0 select-none">
@@ -27,9 +30,17 @@ export default function Header() {
         AI SSH Client
       </span>
 
-      {/* Center: connection info placeholder */}
-      <div className="flex-1 flex items-center justify-center">
-        <span className="text-[11px] text-[var(--text-tertiary)]">未连接</span>
+      {/* Center: AI 绑定状态 */}
+      <div className="flex-1 flex items-center justify-center gap-3">
+        {activeServer ? (
+          <span className="text-[11px] px-2 py-0.5 rounded bg-[var(--accent-bg)]/10 border border-[var(--accent-bg)]/30 text-[var(--accent-bg)]">
+            AI → {activeServer.username}@{activeServer.host}
+          </span>
+        ) : (
+          <span className="text-[11px] text-[var(--text-tertiary)]">
+            点击左侧服务器以绑定 AI 助手
+          </span>
+        )}
       </div>
 
       {/* Right: toggle buttons + add */}

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useChatDispatch, useChatActions } from "../../contexts/ChatContext";
+import { useSshState } from "../../contexts/SshContext";
 
 // ===== Model & Reasoning Effort Options =====
 const LLM_MODELS = [
@@ -61,16 +62,17 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dispatch = useChatDispatch();
   const { sendMessage } = useChatActions();
+  const { activeConnectionId } = useSshState();
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
-    sendMessage(trimmed);
+    sendMessage(trimmed, activeConnectionId ?? undefined);
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [input, isStreaming, sendMessage]);
+  }, [input, isStreaming, sendMessage, activeConnectionId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

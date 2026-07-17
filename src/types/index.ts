@@ -42,6 +42,14 @@ export interface TerminalTab {
   errorMessage?: string;
 }
 
+/** SSE 步骤事件类型 */
+export interface StepEvent {
+  t: "thinking" | "tool_call" | "tool_result";
+  n?: string;  // 工具名
+  a?: string;  // 参数
+  r?: string;  // 结果
+}
+
 // ===== AI 聊天 =====
 export interface ChatMessage {
   id: string;
@@ -50,6 +58,7 @@ export interface ChatMessage {
   timestamp: number;
   status?: "sending" | "sent" | "error";
   streaming?: boolean;
+  steps?: StepEvent[];  // 工具调用步骤
 }
 
 export interface Conversation {

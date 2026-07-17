@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
-import { useSshDispatch, useSshActions } from "../../contexts/SshContext";
+import { useSshState, useSshDispatch, useSshActions } from "../../contexts/SshContext";
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
 
 interface Props {
@@ -8,16 +8,22 @@ interface Props {
 }
 
 export default function SshServerItem({ server }: Props) {
+  const { activeConnectionId } = useSshState();
   const sshDispatch = useSshDispatch();
   const terminalDispatch = useTerminalDispatch();
-  const { connectServer, disconnectServer, removeServer } = useSshActions();
+  const { connectServer, disconnectServer, removeServer, setActiveConnection } = useSshActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isConnected = server.status === 1;
+  const isActive = activeConnectionId === server.id;
 
   const handleRowClick = () => {
+    // 单击：切换到该服务器的终端标签，同时绑定 AI 到该服务器
     terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+    if (isConnected) {
+      setActiveConnection(isActive ? null : server.id);
+    }
   };
 
   const handleDoubleClick = useCallback(async () => {
@@ -62,6 +68,7 @@ export default function SshServerItem({ server }: Props) {
   const handleDisconnect = async () => {
     await disconnectServer(server.id);
     terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
+    if (isActive) setActiveConnection(null);
     closeMenu();
   };
 
@@ -92,9 +99,10 @@ export default function SshServerItem({ server }: Props) {
   return (
     <>
       <div
-        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors duration-100
+        className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors duration-100
                     border-b border-[var(--border-subtle)] last:border-b-0
-                    hover:bg-[var(--surface-hover)]"
+                    hover:bg-[var(--surface-hover)]
+                    ${isActive ? "bg-[var(--surface-active)] ring-1 ring-inset ring-[var(--accent-bg)]" : ""}`}
         onClick={handleRowClick}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type Dispatch, type ReactNode } from "react";
-import type { ChatMessage, Conversation } from "../types";
+import type { ChatMessage, Conversation, StepEvent } from "../types";
 import { listAgents, createSession, chatStreamUrl } from "../api/chat";
 import type { AgentConfig } from "../api/chat";
 
@@ -18,6 +18,7 @@ type ChatAction =
   | { type: "NEW_CONVERSATION" }
   | { type: "SEND_MESSAGE"; content: string; assistantId?: string }
   | { type: "APPEND_STREAM"; messageId: string; chunk: string }
+  | { type: "APPEND_STEP"; messageId: string; step: StepEvent }
   | { type: "FINISH_STREAM"; messageId: string }
   | { type: "SET_MESSAGE_STATUS"; id: string; status: ChatMessage["status"] }
   | { type: "SELECT_AGENT"; agentId: string }
@@ -108,6 +109,22 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             : c
         ),
       };
+    case "APPEND_STEP":
+      return {
+        ...state,
+        conversations: state.conversations.map((c) =>
+          c.id === state.activeConversationId
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === action.messageId
+                    ? { ...m, steps: [...(m.steps || []), action.step] }
+                    : m
+                ),
+              }
+            : c
+        ),
+      };
     case "FINISH_STREAM":
       return {
         ...state,
@@ -124,7 +141,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             : c
         ),
       };
-    case "SET_MESSAGE_STATUS":
+    case "SET_MESSAGE_STATUS": {
+      const { id, status } = action;
       return {
         ...state,
         conversations: state.conversations.map((c) =>
@@ -132,12 +150,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             ? {
                 ...c,
                 messages: c.messages.map((m) =>
-                  m.id === action.id ? { ...m, status: action.status } : m
+                  m.id === id ? { ...m, status } : m
                 ),
               }
             : c
         ),
       };
+    }
     case "SELECT_AGENT":
     case "SET_AGENT_ID":
       return { ...state, selectedAgentId: action.agentId };
@@ -265,7 +284,7 @@ export function useChatActions() {
   const state = useChatState();
   const dispatch = useChatDispatch();
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, terminalSessionId?: string) => {
     // 1. 如果没有 session，先创建
     let sessionId = state.sessionId;
     if (!sessionId) {
@@ -297,15 +316,20 @@ export function useChatActions() {
     // 3. 调用流式 SSE API
     dispatch({ type: "SET_SENDING", sending: true });
     try {
+      const body: Record<string, string> = {
+        agentId: state.selectedAgentId,
+        userId: "default",
+        sessionId,
+        message: content,
+      };
+      if (terminalSessionId) {
+        body.terminalSessionId = terminalSessionId;
+      }
+
       const response = await fetch(chatStreamUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: state.selectedAgentId,
-          userId: "default",
-          sessionId,
-          message: content,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -343,6 +367,19 @@ export function useChatActions() {
                     messageId: assistantId,
                     chunk: data.v,
                   });
+                }
+                // 解析工具调用步骤
+                if (data.s) {
+                  const steps = Array.isArray(data.s) ? data.s : [data.s];
+                  for (const step of steps) {
+                    if (step.t === "tool_call" || step.t === "tool_result") {
+                      dispatch({
+                        type: "APPEND_STEP",
+                        messageId: assistantId,
+                        step,
+                      });
+                    }
+                  }
                 }
               } catch {
                 // Ignore parse errors for malformed SSE data

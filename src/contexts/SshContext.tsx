@@ -7,6 +7,7 @@ import type { ConnectionResponse } from "../api/ssh";
 // ===== State & Actions =====
 interface SshState {
   servers: SshServer[];
+  activeConnectionId: string | null;  // ← 新增：当前 AI 绑定的服务器
   filterText: string;
   editingServer: SshServer | null;
   isDialogOpen: boolean;
@@ -15,6 +16,7 @@ interface SshState {
 }
 
 type SshAction =
+  | { type: "SET_ACTIVE_CONNECTION"; connectionId: string | null }
   | { type: "SET_FILTER"; text: string }
   | { type: "OPEN_ADD_DIALOG" }
   | { type: "OPEN_EDIT_DIALOG"; server: SshServer }
@@ -29,6 +31,7 @@ type SshAction =
 
 const initialState: SshState = {
   servers: [],
+  activeConnectionId: null,
   filterText: "",
   editingServer: null,
   isDialogOpen: false,
@@ -53,6 +56,8 @@ function mapResponseToServer(item: ConnectionResponse): SshServer {
 
 function sshReducer(state: SshState, action: SshAction): SshState {
   switch (action.type) {
+    case "SET_ACTIVE_CONNECTION":
+      return { ...state, activeConnectionId: action.connectionId };
     case "SET_FILTER":
       return { ...state, filterText: action.text };
     case "OPEN_ADD_DIALOG":
@@ -227,5 +232,9 @@ export function useSshActions() {
     }
   }, [dispatch]);
 
-  return { fetchServers, addServer, removeServer, connectServer, disconnectServer };
+  const setActiveConnection = useCallback((connectionId: string | null) => {
+    dispatch({ type: "SET_ACTIVE_CONNECTION", connectionId });
+  }, [dispatch]);
+
+  return { fetchServers, addServer, removeServer, connectServer, disconnectServer, setActiveConnection };
 }

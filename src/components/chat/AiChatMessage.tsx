@@ -21,6 +21,40 @@ export default function AiChatMessage({ message }: Props) {
           {renderMarkdown(message.content)}
         </div>
 
+        {/* Tool call steps (only for assistant messages) */}
+        {!isUser && message.steps && message.steps.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {message.steps.map((step, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-1.5 text-[11px] text-[var(--text-secondary)]
+                           bg-[var(--surface-app)] rounded-md px-2 py-1.5 border border-[var(--border-subtle)]"
+              >
+                {step.t === "tool_call" ? (
+                  <>
+                    <span className="text-[var(--status-warning)] flex-shrink-0">🔧</span>
+                    <div className="min-w-0">
+                      <span className="font-medium text-[var(--text-primary)]">{step.n}</span>
+                      {step.a && (
+                        <span className="ml-1 text-[var(--text-tertiary)] font-mono break-all">
+                          {truncate(step.a, 60)}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : step.t === "tool_result" ? (
+                  <>
+                    <span className="text-[var(--status-success)] flex-shrink-0">✓</span>
+                    <span className="font-mono break-all text-[10px]">
+                      {step.r ? truncate(step.r, 120) : "完成"}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Streaming cursor */}
         {message.streaming && (
           <span className="inline-block w-1.5 h-3.5 bg-[var(--text-primary)] ml-0.5 animate-pulse align-middle rounded-sm" />
@@ -96,6 +130,12 @@ function renderMarkdown(content: string): React.ReactNode {
   });
 
   return <>{parts}</>;
+}
+
+// ===== Helpers =====
+function truncate(s: string, max: number): string {
+  if (!s || s.length <= max) return s;
+  return s.slice(0, max) + "...";
 }
 
 // ===== Time Formatting =====
