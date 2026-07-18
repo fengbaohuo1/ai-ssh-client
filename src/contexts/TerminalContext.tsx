@@ -45,20 +45,31 @@ function terminalReducer(state: TerminalState, action: TerminalAction): Terminal
     }
 
     case "OPEN_SERVER_TAB": {
+      // 一个连接只有一个标签，已有则直接切换
+      const existing = state.serverTabs[action.serverId];
+      if (existing && existing.length > 0) {
+        return {
+          ...state,
+          activeServerId: action.serverId,
+          activeTabId: existing[0].id,
+          activeLocalTabId: null,
+        };
+      }
       const newTab: TerminalTab = {
         id: `term-${nextTabId++}`,
         serverId: action.serverId,
         serverName: action.serverName,
         status: "disconnected",
       };
-      const existing = state.serverTabs[action.serverId] || [];
       return {
         ...state,
         serverTabs: {
           ...state.serverTabs,
-          [action.serverId]: [...existing, newTab],
+          [action.serverId]: [newTab],
         },
+        activeServerId: action.serverId,
         activeTabId: newTab.id,
+        activeLocalTabId: null,
       };
     }
 

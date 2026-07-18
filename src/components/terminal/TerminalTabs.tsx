@@ -91,21 +91,14 @@ export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
         })}
       </div>
 
-      {/* Plus button - creates new tab for current server */}
+      {/* Plus button - creates new local terminal only（一个连接一个标签） */}
       <button
         onClick={() => {
-          if (serverId) {
-            const baseName = tabs[0]?.serverName || "终端";
-            const tabNumber = tabs.length + 1;
-            const tabName = tabNumber === 1 ? baseName : `${baseName} (${tabNumber})`;
-            dispatch({ type: "OPEN_SERVER_TAB", serverId, serverName: tabName });
-          } else {
-            dispatch({ type: "OPEN_LOCAL_TAB", serverName: `终端 ${tabs.length + 1}` });
-          }
+          dispatch({ type: "OPEN_LOCAL_TAB", serverName: `终端 ${tabs.length + 1}` });
         }}
         className="flex items-center justify-center w-[34px] h-[34px] text-sm text-[var(--text-secondary)]
                    hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors flex-shrink-0"
-        title="新建终端"
+        title="新建本地终端"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="12" y1="5" x2="12" y2="19" />
