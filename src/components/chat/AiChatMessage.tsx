@@ -20,22 +20,14 @@ export default function AiChatMessage({ message }: Props) {
             : "bg-[var(--surface-input)] text-[var(--text-primary)] rounded-bl-md border border-[var(--border-subtle)]"
         }`}
       >
-        {/* Tool call steps — 放在内容之前，按时间顺序 */}
-        {!isUser && message.steps && message.steps.length > 0 && (
-          <div className="mb-2 space-y-1">
-            <ToolCallSteps steps={message.steps} />
-          </div>
-        )}
-
-        {/* Message content with full Markdown */}
-        {isUser ? (
+        {/* AI 消息：步骤按时间线穿插在文本中 */}
+        {!isUser && message.steps && message.steps.length > 0 ? (
+          <InterleavedContent content={message.content} steps={message.steps} />
+        ) : isUser ? (
           <div className="whitespace-pre-wrap break-words">{message.content}</div>
         ) : (
           <div className="prose-custom break-words">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={markdownComponents}
-            >
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {message.content || ""}
             </ReactMarkdown>
           </div>
@@ -67,44 +59,89 @@ export default function AiChatMessage({ message }: Props) {
   );
 }
 
-// ===== 可折叠的工具调用步骤 =====
+// ===== 时间线穿插渲染 =====
 
-function ToolCallSteps({ steps }: { steps: StepEvent[] }) {
-  // 配对 tool_call + tool_result
-  const pairs: { call?: StepEvent; result?: StepEvent }[] = [];
-  for (let i = 0; i < steps.length; i++) {
-    if (steps[i].t === "tool_call") {
-      const next = steps[i + 1];
-      if (next?.t === "tool_result" && next.n === steps[i].n) {
-        pairs.push({ call: steps[i], result: next });
-        i++; // 跳过已配对的 result
-      } else {
-        pairs.push({ call: steps[i] });
+/**
+ * 将文本按步骤的 contentOffset 切段，步骤穿插在对应位置。
+ * 例如：content="AB  CD", steps=[{contentOffset:2}, {contentOffset:4}]
+ * → ["AB"] → [step 0] → ["  "] → [step 1] → ["CD"]
+ */
+function InterleavedContent({ content, steps }: { content: string; steps: StepEvent[] }) {
+  const sorted = [...steps].sort((a, b) => (a.contentOffset ?? 0) - (b.contentOffset ?? 0));
+
+  const segments: React.ReactNode[] = [];
+  let cursor = 0;
+
+  for (const step of sorted) {
+    const offset = step.contentOffset ?? 0;
+    // 插入 step 之前的文本段
+    if (offset > cursor && cursor < content.length) {
+      const text = content.slice(cursor, Math.min(offset, content.length));
+      if (text) {
+        segments.push(
+          <div key={`t-${cursor}`} className="prose-custom break-words">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {text}
+            </ReactMarkdown>
+          </div>
+        );
       }
-    } else if (steps[i].t === "tool_result") {
-      pairs.push({ result: steps[i] });
     }
+    cursor = Math.max(cursor, offset);
+
+    // 插入步骤卡片
+    segments.push(<ToolCallSteps key={`s-${cursor}`} steps={[step]} />);
   }
 
+  // 剩余的文本段
+  if (cursor < content.length) {
+    const rest = content.slice(cursor);
+    segments.push(
+      <div key={`t-${cursor}`} className="prose-custom break-words">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+          {rest}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  return <div className="space-y-1">{segments}</div>;
+}
+
+// ===== 可折叠的工具调用卡片 =====
+
+/**
+ * 解析 JSON 字段，支持普通 JSON 和 SshExecuteAdkTool 返回的带 output 字段的 Map JSON。
+ */
+function jsonField(json: string | undefined, key: string): string {
+  if (!json) return "";
+  try {
+    const obj = JSON.parse(json);
+    const val = obj[key];
+    if (val === null || val === undefined) return "";
+    return String(val);
+  } catch {
+    return "";
+  }
+}
+
+function ToolCallSteps({ steps }: { steps: StepEvent[] }) {
   return (
     <>
-      {pairs.map((pair, i) => (
-        <ToolCallItem key={i} pair={pair} />
+      {steps.map((step, i) => (
+        <ToolCallItem key={i} step={step} />
       ))}
     </>
   );
 }
 
-function ToolCallItem({ pair }: { pair: { call?: StepEvent; result?: StepEvent } }) {
-  const hasContent = pair.call || pair.result;
-  if (!hasContent) return null;
+function ToolCallItem({ step }: { step: StepEvent }) {
   const [open, setOpen] = useState(false);
-  const { call, result } = pair;
+  const isCall = step.t === "tool_call";
 
-  // 从 tool_call 参数 JSON 中提取命令
-  const command = parseCommand(call?.a);
-  // 从 tool_result 中提取返回摘要
-  const resultSummary = result?.r ? result.r.slice(0, 60).trim() : "";
+  const command = isCall ? jsonField(step.a, "command") : "";
+  const resultOutput = !isCall ? jsonField(step.r, "output") : "";
+  const resultOk = !isCall ? jsonField(step.r, "success") : null;
 
   return (
     <div
@@ -114,7 +151,6 @@ function ToolCallItem({ pair }: { pair: { call?: StepEvent; result?: StepEvent }
     >
       {/* 折叠栏 (summary) */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 select-none">
-        {/* 展开/折叠图标 */}
         <svg
           width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="2.5" strokeLinecap="round"
@@ -125,27 +161,25 @@ function ToolCallItem({ pair }: { pair: { call?: StepEvent; result?: StepEvent }
           <polyline points="9,18 15,12 9,6" />
         </svg>
 
-        {/* 图标 */}
-        {call ? (
+        {isCall ? (
           <span className="text-[var(--status-warning)] flex-shrink-0 text-[11px]">🔧</span>
         ) : (
-          <span className="text-[var(--status-success)] flex-shrink-0 text-[11px]">✓</span>
-        )}
-
-        {/* 工具名 */}
-        <span className="font-medium text-[11px] text-[var(--text-primary)]">
-          {call?.n || result?.n || "工具"}
-        </span>
-
-        {/* 命令/结果摘要 */}
-        {!open && (
-          <span className="text-[10px] text-[var(--text-tertiary)] font-mono truncate ml-1">
-            {command || resultSummary}
+          <span className={`flex-shrink-0 text-[11px] ${resultOk === "false" ? "text-[var(--status-error)]" : "text-[var(--status-success)]"}`}>
+            {resultOk === "false" ? "✗" : "✓"}
           </span>
         )}
 
-        {/* Streaming indicator (只有 call 没有 result) */}
-        {call && !result && (
+        <span className="font-medium text-[11px] text-[var(--text-primary)]">
+          {step.n || "工具"}
+        </span>
+
+        {!open && (
+          <span className="text-[10px] text-[var(--text-tertiary)] font-mono truncate ml-1">
+            {command || resultOutput}
+          </span>
+        )}
+
+        {isCall && (
           <span className="ml-auto flex-shrink-0">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--status-warning)] animate-pulse" />
           </span>
@@ -155,20 +189,20 @@ function ToolCallItem({ pair }: { pair: { call?: StepEvent; result?: StepEvent }
       {/* 展开内容 */}
       {open && (
         <div className="border-t border-[var(--border-subtle)]" onClick={(e) => e.stopPropagation()}>
-          {call && (
+          {isCall && command && (
             <div className="px-3 py-1.5">
               <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">命令</div>
               <div className="text-[11px] font-mono text-[var(--terminal-green)] bg-[var(--surface-input)] rounded px-2 py-1">
-                $ {command || "(参数解析失败)"}
+                $ {command}
               </div>
             </div>
           )}
-          {result?.r && (
-            <div className="px-3 py-1.5 border-t border-[var(--border-subtle)]">
+          {!isCall && resultOutput && (
+            <div className="px-3 py-1.5">
               <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">返回结果</div>
               <pre className="text-[10px] font-mono text-[var(--text-secondary)] leading-relaxed
                               max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all">
-                {result.r}
+                {resultOutput}
               </pre>
             </div>
           )}
@@ -176,18 +210,6 @@ function ToolCallItem({ pair }: { pair: { call?: StepEvent; result?: StepEvent }
       )}
     </div>
   );
-}
-
-/** 从 tool_call 的 args JSON 中提取 command 字段 */
-function parseCommand(args?: string): string {
-  if (!args) return "";
-  try {
-    const parsed = JSON.parse(args);
-    return parsed.command || parsed.cmd || parsed.script || "";
-  } catch {
-    // 不是 JSON 则直接返回原文
-    return args.length > 80 ? args.slice(0, 80) + "..." : args;
-  }
 }
 
 // ===== Custom Markdown Components =====

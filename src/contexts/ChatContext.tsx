@@ -118,7 +118,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 ...c,
                 messages: c.messages.map((m) =>
                   m.id === action.messageId
-                    ? { ...m, steps: [...(m.steps || []), action.step] }
+                    ? {
+                        ...m,
+                        steps: [...(m.steps || []), {
+                          ...action.step,
+                          contentOffset: m.content.length,  // 记录当前文本长度作为插入位置
+                        }],
+                      }
                     : m
                 ),
               }

@@ -46,8 +46,9 @@ export interface TerminalTab {
 export interface StepEvent {
   t: "thinking" | "tool_call" | "tool_result";
   n?: string;  // 工具名
-  a?: string;  // 参数
-  r?: string;  // 结果
+  a?: string;  // 参数（JSON 字符串）
+  r?: string;  // 结果（JSON 字符串）
+  contentOffset?: number;  // 步骤在消息文本中的插入位置
 }
 
 // ===== AI 聊天 =====
