@@ -63,9 +63,10 @@ export default function AiChatMessage({ message }: Props) {
 
 /**
  * 将文本按步骤的 contentOffset 切段，步骤穿插在对应位置。
+ * contentOffset 基于原始 content（未归一化），所以 cursor 也在原始 content 上移动。
+ * 每个文本段单独归一化再渲染，避免破坏表格等 Markdown 格式。
  */
 function InterleavedContent({ content, steps }: { content: string; steps: StepEvent[] }) {
-  const normalized = normalizeContent(content);
   const sorted = [...steps].sort((a, b) => (a.contentOffset ?? 0) - (b.contentOffset ?? 0));
 
   const segments: React.ReactNode[] = [];
@@ -73,24 +74,27 @@ function InterleavedContent({ content, steps }: { content: string; steps: StepEv
 
   for (const step of sorted) {
     const offset = step.contentOffset ?? 0;
-    if (offset > cursor && cursor < normalized.length) {
-      const text = normalized.slice(cursor, Math.min(offset, normalized.length));
-      if (text.trim()) {
+    // 1) 原始 content 上截段，cursor/offset 对齐原始长度
+    if (offset > cursor && cursor < content.length) {
+      const raw = content.slice(cursor, Math.min(offset, content.length));
+      if (raw.trim()) {
         segments.push(
           <div key={`t-${cursor}`} className="prose-custom break-words">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {text}
+              {raw}
             </ReactMarkdown>
           </div>
         );
       }
     }
     cursor = Math.max(cursor, offset);
+    // 2) 步骤卡片
     segments.push(<ToolCallSteps key={`s-${cursor}`} steps={[step]} />);
   }
 
-  if (cursor < normalized.length) {
-    const rest = normalized.slice(cursor);
+  // 3) 剩余尾部
+  if (cursor < content.length) {
+    const rest = content.slice(cursor);
     segments.push(
       <div key={`t-${cursor}`} className="prose-custom break-words">
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -320,27 +324,34 @@ const markdownComponents: Components = {
  * 避免每字一段的渲染问题。
  */
 /**
- * 归一化 LLM 流式输出的换行符碎块。
- * - 连续的 \n 合并为空格（LLM Token 边界产生的多余换行）
- * - 但对 ` ``` ` 包围的代码块内容不过度处理
+ * 归一化 LLM 流式输出的换行符碎块（保护代码块和表格）。
+ * - 代码块 ``` ``` 内部不动
+ * - 表格行（以 | 开头）之间的换行保留
+ * - 其他位置的连续 \n 合并为空格
  */
 function normalizeContent(text: string): string {
-  // 先把代码块保护起来
   const blocks: string[] = [];
-  const withoutCode = text.replace(/```[\s\S]*?```/g, (match) => {
-    blocks.push(match);
-    return `\0CODEBLOCK${blocks.length - 1}\0`;
+  // 1) 保护代码块
+  let s = text.replace(/```[\s\S]*?```/g, (m) => {
+    blocks.push(m);
+    return `\0CODE${blocks.length - 1}\0`;
   });
 
-  // 对非代码内容归一化
-  const normalized = withoutCode
-    .replace(/\r\n/g, '\n')
-    .replace(/\n+/g, ' ')
+  // 2) 保护表格（连续以 | 开头的行之间只保留 \n，不合并为空格）
+  //    先统一换行符
+  s = s.replace(/\r\n/g, '\n');
+  //    把连续的表格行之间的空行干掉（表格行之间不需要 \n\n）
+  s = s.replace(/(\n\|[^\n]*)\n{2,}(?=\|)/g, '$1\n');
+
+  // 3) 其他位置的连续 \n 合并为空格
+  s = s
+    .replace(/\n{3,}/g, '\n\n')     // 3+ → 段落分隔
+    .replace(/\n{2}/g, ' ')          // 2 → 空格（合并碎块）
     .replace(/ {2,}/g, ' ')
     .trim();
 
-  // 恢复代码块
-  return normalized.replace(/\0CODEBLOCK(\d+)\0/g, (_, idx) => blocks[parseInt(idx)] || "");
+  // 4) 恢复代码块
+  return s.replace(/\0CODE(\d+)\0/g, (_, idx) => blocks[parseInt(idx)] || "");
 }
 
 // ===== Time Formatting =====
