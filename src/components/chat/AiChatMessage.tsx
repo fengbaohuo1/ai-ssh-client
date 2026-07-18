@@ -84,14 +84,17 @@ export default function AiChatMessage({ message }: Props) {
  * 解析 JSON 字段，支持普通 JSON 和 SshExecuteAdkTool 返回的带 output 字段的 Map JSON。
  */
 function jsonField(json: string | object | undefined | null, key: string): string {
-  if (!json) return "";
+  if (!json) { console.warn("[jsonField] null input"); return ""; }
   try {
-    // 后端现在发的是 JSON 对象（不再是字符串），需要兼容两种输入
+    console.log("[jsonField] type=", typeof json, "keys=", Object.keys(json as object), "key=", key);
     const obj = typeof json === "string" ? JSON.parse(json) : json;
+    if (typeof obj !== "object" || obj === null) { console.warn("[jsonField] not object"); return ""; }
     const val = (obj as Record<string, unknown>)[key];
+    console.log("[jsonField] val=", typeof val, val);
     if (val === null || val === undefined) return "";
     return String(val);
-  } catch {
+  } catch (e) {
+    console.warn("[jsonField] caught:", e);
     return "";
   }
 }
