@@ -28,7 +28,7 @@ export default function AiChatMessage({ message }: Props) {
         ) : (
           <div className="prose-custom break-words">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {message.content || ""}
+              {normalizeContent(message.content) || ""}
             </ReactMarkdown>
           </div>
         )}
@@ -63,10 +63,9 @@ export default function AiChatMessage({ message }: Props) {
 
 /**
  * 将文本按步骤的 contentOffset 切段，步骤穿插在对应位置。
- * 例如：content="AB  CD", steps=[{contentOffset:2}, {contentOffset:4}]
- * → ["AB"] → [step 0] → ["  "] → [step 1] → ["CD"]
  */
 function InterleavedContent({ content, steps }: { content: string; steps: StepEvent[] }) {
+  const normalized = normalizeContent(content);
   const sorted = [...steps].sort((a, b) => (a.contentOffset ?? 0) - (b.contentOffset ?? 0));
 
   const segments: React.ReactNode[] = [];
@@ -74,10 +73,9 @@ function InterleavedContent({ content, steps }: { content: string; steps: StepEv
 
   for (const step of sorted) {
     const offset = step.contentOffset ?? 0;
-    // 插入 step 之前的文本段
-    if (offset > cursor && cursor < content.length) {
-      const text = content.slice(cursor, Math.min(offset, content.length));
-      if (text) {
+    if (offset > cursor && cursor < normalized.length) {
+      const text = normalized.slice(cursor, Math.min(offset, normalized.length));
+      if (text.trim()) {
         segments.push(
           <div key={`t-${cursor}`} className="prose-custom break-words">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -88,14 +86,11 @@ function InterleavedContent({ content, steps }: { content: string; steps: StepEv
       }
     }
     cursor = Math.max(cursor, offset);
-
-    // 插入步骤卡片
     segments.push(<ToolCallSteps key={`s-${cursor}`} steps={[step]} />);
   }
 
-  // 剩余的文本段
-  if (cursor < content.length) {
-    const rest = content.slice(cursor);
+  if (cursor < normalized.length) {
+    const rest = normalized.slice(cursor);
     segments.push(
       <div key={`t-${cursor}`} className="prose-custom break-words">
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -317,6 +312,36 @@ const markdownComponents: Components = {
     return <strong className="font-semibold text-[var(--text-primary)]">{children}</strong>;
   },
 };
+
+// ===== Content Normalization =====
+
+/**
+ * 归一化 LLM 输出内容：压缩连续的 \n\n Token 碎片为空格，
+ * 避免每字一段的渲染问题。
+ */
+/**
+ * 归一化 LLM 流式输出的换行符碎块。
+ * - 连续的 \n 合并为空格（LLM Token 边界产生的多余换行）
+ * - 但对 ` ``` ` 包围的代码块内容不过度处理
+ */
+function normalizeContent(text: string): string {
+  // 先把代码块保护起来
+  const blocks: string[] = [];
+  const withoutCode = text.replace(/```[\s\S]*?```/g, (match) => {
+    blocks.push(match);
+    return `\0CODEBLOCK${blocks.length - 1}\0`;
+  });
+
+  // 对非代码内容归一化
+  const normalized = withoutCode
+    .replace(/\r\n/g, '\n')
+    .replace(/\n+/g, ' ')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+
+  // 恢复代码块
+  return normalized.replace(/\0CODEBLOCK(\d+)\0/g, (_, idx) => blocks[parseInt(idx)] || "");
+}
 
 // ===== Time Formatting =====
 function formatTime(timestamp: number): string {
