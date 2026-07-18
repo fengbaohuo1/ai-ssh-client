@@ -380,7 +380,11 @@ export function useChatActions() {
                   const steps = Array.isArray(data.s) ? data.s : [data.s];
                   for (const step of steps) {
                     if (step.t === "tool_call" || step.t === "tool_result") {
-                      console.log("[Chat] APPEND_STEP RAW step:", JSON.stringify(step));
+                      // [DEBUG] 步骤丢失追踪
+                  if (step.a && typeof step.a === "object" && Object.keys(step.a).length === 0) {
+                    console.warn("[Chat] EMPTY a! raw jsonStr:", jsonStr);
+                  }
+                  console.log("[Chat] APPEND_STEP RAW step:", JSON.stringify(step));
                       dispatch({
                         type: "APPEND_STEP",
                         messageId: assistantId,
