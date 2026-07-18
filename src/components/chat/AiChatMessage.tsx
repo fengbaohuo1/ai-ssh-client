@@ -86,11 +86,10 @@ export default function AiChatMessage({ message }: Props) {
 function jsonField(json: string | object | undefined | null, key: string): string {
   if (!json) { console.warn("[jsonField] null input"); return ""; }
   try {
-    console.log("[jsonField] type=", typeof json, "keys=", Object.keys(json as object), "key=", key);
+    console.log("[jsonField] typeof=", typeof json, "str=", JSON.stringify(json), "key=", key);
     const obj = typeof json === "string" ? JSON.parse(json) : json;
     if (typeof obj !== "object" || obj === null) { console.warn("[jsonField] not object"); return ""; }
     const val = (obj as Record<string, unknown>)[key];
-    console.log("[jsonField] val=", typeof val, val);
     if (val === null || val === undefined) return "";
     return String(val);
   } catch (e) {
