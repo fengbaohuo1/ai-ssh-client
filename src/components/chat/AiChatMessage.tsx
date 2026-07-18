@@ -1,4 +1,5 @@
-import type { ChatMessage } from "../../types";
+import { useState } from "react";
+import type { ChatMessage, StepEvent } from "../../types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -19,6 +20,13 @@ export default function AiChatMessage({ message }: Props) {
             : "bg-[var(--surface-input)] text-[var(--text-primary)] rounded-bl-md border border-[var(--border-subtle)]"
         }`}
       >
+        {/* Tool call steps — 放在内容之前，按时间顺序 */}
+        {!isUser && message.steps && message.steps.length > 0 && (
+          <div className="mb-2 space-y-1">
+            <ToolCallSteps steps={message.steps} />
+          </div>
+        )}
+
         {/* Message content with full Markdown */}
         {isUser ? (
           <div className="whitespace-pre-wrap break-words">{message.content}</div>
@@ -30,40 +38,6 @@ export default function AiChatMessage({ message }: Props) {
             >
               {message.content || ""}
             </ReactMarkdown>
-          </div>
-        )}
-
-        {/* Tool call steps (only for assistant messages) */}
-        {!isUser && message.steps && message.steps.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {message.steps.map((step, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-1.5 text-[11px] text-[var(--text-secondary)]
-                           bg-[var(--surface-app)] rounded-md px-2 py-1.5 border border-[var(--border-subtle)]"
-              >
-                {step.t === "tool_call" ? (
-                  <>
-                    <span className="text-[var(--status-warning)] flex-shrink-0">🔧</span>
-                    <div className="min-w-0">
-                      <span className="font-medium text-[var(--text-primary)]">{step.n}</span>
-                      {step.a && (
-                        <span className="ml-1 text-[var(--text-tertiary)] font-mono break-all">
-                          {truncate(step.a, 60)}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                ) : step.t === "tool_result" ? (
-                  <>
-                    <span className="text-[var(--status-success)] flex-shrink-0">✓</span>
-                    <span className="font-mono break-all text-[10px]">
-                      {step.r ? truncate(step.r, 120) : "完成"}
-                    </span>
-                  </>
-                ) : null}
-              </div>
-            ))}
           </div>
         )}
 
@@ -93,10 +67,132 @@ export default function AiChatMessage({ message }: Props) {
   );
 }
 
+// ===== 可折叠的工具调用步骤 =====
+
+function ToolCallSteps({ steps }: { steps: StepEvent[] }) {
+  // 配对 tool_call + tool_result
+  const pairs: { call?: StepEvent; result?: StepEvent }[] = [];
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].t === "tool_call") {
+      const next = steps[i + 1];
+      if (next?.t === "tool_result" && next.n === steps[i].n) {
+        pairs.push({ call: steps[i], result: next });
+        i++; // 跳过已配对的 result
+      } else {
+        pairs.push({ call: steps[i] });
+      }
+    } else if (steps[i].t === "tool_result") {
+      pairs.push({ result: steps[i] });
+    }
+  }
+
+  return (
+    <>
+      {pairs.map((pair, i) => (
+        <ToolCallItem key={i} pair={pair} />
+      ))}
+    </>
+  );
+}
+
+function ToolCallItem({ pair }: { pair: { call?: StepEvent; result?: StepEvent } }) {
+  const hasContent = pair.call || pair.result;
+  if (!hasContent) return null;
+  const [open, setOpen] = useState(false);
+  const { call, result } = pair;
+
+  // 从 tool_call 参数 JSON 中提取命令
+  const command = parseCommand(call?.a);
+  // 从 tool_result 中提取返回摘要
+  const resultSummary = result?.r ? result.r.slice(0, 60).trim() : "";
+
+  return (
+    <div
+      className="bg-[var(--surface-app)] rounded-md border border-[var(--border-subtle)] overflow-hidden cursor-pointer
+                  transition-colors duration-100 hover:border-[var(--border-default)]"
+      onClick={() => setOpen(!open)}
+    >
+      {/* 折叠栏 (summary) */}
+      <div className="flex items-center gap-1.5 px-2 py-1.5 select-none">
+        {/* 展开/折叠图标 */}
+        <svg
+          width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2.5" strokeLinecap="round"
+          className={`text-[var(--text-tertiary)] transition-transform duration-150 ${
+            open ? "rotate-90" : ""
+          }`}
+        >
+          <polyline points="9,18 15,12 9,6" />
+        </svg>
+
+        {/* 图标 */}
+        {call ? (
+          <span className="text-[var(--status-warning)] flex-shrink-0 text-[11px]">🔧</span>
+        ) : (
+          <span className="text-[var(--status-success)] flex-shrink-0 text-[11px]">✓</span>
+        )}
+
+        {/* 工具名 */}
+        <span className="font-medium text-[11px] text-[var(--text-primary)]">
+          {call?.n || result?.n || "工具"}
+        </span>
+
+        {/* 命令/结果摘要 */}
+        {!open && (
+          <span className="text-[10px] text-[var(--text-tertiary)] font-mono truncate ml-1">
+            {command || resultSummary}
+          </span>
+        )}
+
+        {/* Streaming indicator (只有 call 没有 result) */}
+        {call && !result && (
+          <span className="ml-auto flex-shrink-0">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--status-warning)] animate-pulse" />
+          </span>
+        )}
+      </div>
+
+      {/* 展开内容 */}
+      {open && (
+        <div className="border-t border-[var(--border-subtle)]" onClick={(e) => e.stopPropagation()}>
+          {call && (
+            <div className="px-3 py-1.5">
+              <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">命令</div>
+              <div className="text-[11px] font-mono text-[var(--terminal-green)] bg-[var(--surface-input)] rounded px-2 py-1">
+                $ {command || "(参数解析失败)"}
+              </div>
+            </div>
+          )}
+          {result?.r && (
+            <div className="px-3 py-1.5 border-t border-[var(--border-subtle)]">
+              <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">返回结果</div>
+              <pre className="text-[10px] font-mono text-[var(--text-secondary)] leading-relaxed
+                              max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all">
+                {result.r}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 从 tool_call 的 args JSON 中提取 command 字段 */
+function parseCommand(args?: string): string {
+  if (!args) return "";
+  try {
+    const parsed = JSON.parse(args);
+    return parsed.command || parsed.cmd || parsed.script || "";
+  } catch {
+    // 不是 JSON 则直接返回原文
+    return args.length > 80 ? args.slice(0, 80) + "..." : args;
+  }
+}
+
 // ===== Custom Markdown Components =====
 
 const markdownComponents: Components = {
-  // Code blocks (``` ```)
   code({ className, children, ...props }) {
     const isInline = !className;
     if (isInline) {
@@ -122,12 +218,10 @@ const markdownComponents: Components = {
     );
   },
 
-  // Paragraphs — tighter spacing in chat bubbles
   p({ children }) {
     return <p className="my-1 last:mb-0">{children}</p>;
   },
 
-  // Headings
   h1({ children }) {
     return <h1 className="text-sm font-bold my-2 text-[var(--text-primary)]">{children}</h1>;
   },
@@ -138,7 +232,6 @@ const markdownComponents: Components = {
     return <h3 className="text-xs font-semibold my-1 text-[var(--text-primary)]">{children}</h3>;
   },
 
-  // Lists
   ul({ children }) {
     return <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>;
   },
@@ -149,7 +242,6 @@ const markdownComponents: Components = {
     return <li className="text-[var(--text-primary)]">{children}</li>;
   },
 
-  // Links
   a({ href, children }) {
     return (
       <a
@@ -163,7 +255,6 @@ const markdownComponents: Components = {
     );
   },
 
-  // Tables (GFM)
   table({ children }) {
     return (
       <div className="overflow-x-auto my-1.5">
@@ -187,7 +278,6 @@ const markdownComponents: Components = {
     return <td className="border border-[var(--border-default)] px-2 py-1">{children}</td>;
   },
 
-  // Blockquotes
   blockquote({ children }) {
     return (
       <blockquote className="border-l-2 border-[var(--accent-bg)] pl-3 my-1.5 text-[var(--text-secondary)] italic">
@@ -196,22 +286,14 @@ const markdownComponents: Components = {
     );
   },
 
-  // Horizontal rules
   hr() {
     return <hr className="my-2 border-[var(--border-subtle)]" />;
   },
 
-  // Inline bold/strong
   strong({ children }) {
     return <strong className="font-semibold text-[var(--text-primary)]">{children}</strong>;
   },
 };
-
-// ===== Helpers =====
-function truncate(s: string, max: number): string {
-  if (!s || s.length <= max) return s;
-  return s.slice(0, max) + "...";
-}
 
 // ===== Time Formatting =====
 function formatTime(timestamp: number): string {
