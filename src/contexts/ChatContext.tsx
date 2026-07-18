@@ -380,7 +380,7 @@ export function useChatActions() {
                   const steps = Array.isArray(data.s) ? data.s : [data.s];
                   for (const step of steps) {
                     if (step.t === "tool_call" || step.t === "tool_result") {
-                      console.log("[Chat] APPEND_STEP", step.t, step.n, "msgId:", assistantId);
+                      console.log("[Chat] APPEND_STEP RAW step:", JSON.stringify(step));
                       dispatch({
                         type: "APPEND_STEP",
                         messageId: assistantId,
