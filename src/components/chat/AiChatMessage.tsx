@@ -1,8 +1,45 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { ChatMessage, StepEvent } from "../../types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
+
+/** 切割后的段落：文本段 或 步骤卡片 */
+type Segment =
+  | { type: "text"; content: string }
+  | { type: "step"; step: StepEvent };
+
+/**
+ * 将消息文本按各步骤的 contentOffset 切割，步骤卡片穿插在对应段落之间。
+ * 每个文本段独立传给 ReactMarkdown，避免 \n\n 跨段落干扰 Markdown 解析。
+ */
+function interleaveSteps(content: string, steps: StepEvent[]): Segment[] {
+  if (!steps || steps.length === 0) return [{ type: "text", content }];
+
+  const sorted = [...steps].sort(
+    (a, b) => (a.contentOffset ?? 0) - (b.contentOffset ?? 0)
+  );
+
+  const segments: Segment[] = [];
+  let cursor = 0;
+
+  for (const step of sorted) {
+    const offset = Math.min(step.contentOffset ?? 0, content.length);
+
+    if (offset > cursor) {
+      segments.push({ type: "text", content: content.slice(cursor, offset) });
+    }
+
+    segments.push({ type: "step", step });
+    cursor = Math.max(cursor, offset);
+  }
+
+  if (cursor < content.length) {
+    segments.push({ type: "text", content: content.slice(cursor) });
+  }
+
+  return segments;
+}
 
 interface Props {
   message: ChatMessage;
@@ -16,34 +53,47 @@ export default function AiChatMessage({ message }: Props) {
     console.log("[ChatMsg] rendering steps:", message.steps.length, message.steps);
   }
 
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
-          isUser
-            ? "bg-[var(--accent-bg)] text-white rounded-br-md"
-            : "bg-[var(--surface-input)] text-[var(--text-primary)] rounded-bl-md border border-[var(--border-subtle)]"
-        }`}
-      >
-        {/* AI 消息：步骤始终在内容上方渲染（先确保可见，再优化位置） */}
-        {!isUser && message.steps && message.steps.length > 0 && (
-          <div className="mb-2 space-y-1">
-            {message.steps.map((s, i) => (
-              <ToolCallItem key={i} step={s} />
-            ))}
-          </div>
-        )}
-
-        {/* Message content */}
-        {isUser ? (
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed bg-[var(--accent-bg)] text-white rounded-br-md">
           <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        ) : (
-          <div className="prose-custom break-words">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {message.content || ""}
-            </ReactMarkdown>
+          <div className="text-[10px] mt-1.5 text-white/50">
+            {formatTime(message.timestamp)}
           </div>
-        )}
+        </div>
+      </div>
+    );
+  }
+
+  // AI 消息：按 contentOffset 切割文本，步骤穿插
+  const segments = useMemo(
+    () => interleaveSteps(message.content, message.steps || []),
+    [message.content, message.steps]
+  );
+
+  return (
+    <div className="flex justify-start">
+      <div className="w-full min-w-0 text-xs leading-relaxed">
+        {segments.map((seg, i) => {
+          if (seg.type === "text") {
+            return (
+              <div key={`t-${i}`} className="prose-custom break-words">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={markdownComponents}
+                >
+                  {seg.content}
+                </ReactMarkdown>
+              </div>
+            );
+          }
+          return (
+            <div key={`s-${i}`} className="my-1">
+              <ToolCallItem step={seg.step} />
+            </div>
+          );
+        })}
 
         {/* Streaming cursor */}
         {message.streaming && (
@@ -59,11 +109,7 @@ export default function AiChatMessage({ message }: Props) {
         )}
 
         {/* Timestamp */}
-        <div
-          className={`text-[10px] mt-1.5 ${
-            isUser ? "text-white/50" : "text-[var(--text-tertiary)]"
-          }`}
-        >
+        <div className="text-[10px] text-[var(--text-tertiary)] mt-2">
           {formatTime(message.timestamp)}
         </div>
       </div>
@@ -71,13 +117,6 @@ export default function AiChatMessage({ message }: Props) {
   );
 }
 
-// ===== 时间线穿插渲染 =====
-
-/**
- * 将文本按步骤的 contentOffset 切段，步骤穿插在对应位置。
- * contentOffset 基于原始 content（未归一化），所以 cursor 也在原始 content 上移动。
- * 每个文本段单独归一化再渲染，避免破坏表格等 Markdown 格式。
- */
 // ===== 可折叠的工具调用卡片 =====
 
 /**
