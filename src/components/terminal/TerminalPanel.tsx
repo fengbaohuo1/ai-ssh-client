@@ -1,48 +1,18 @@
-import { useMemo } from "react";
 import { useTerminalState } from "../../contexts/TerminalContext";
 import TerminalTabs from "./TerminalTabs";
 import TerminalView from "./TerminalView";
 
 export default function TerminalPanel() {
-  const { serverTabs, activeServerId, localTabs, activeTabId, activeLocalTabId } = useTerminalState();
-
-  // Determine which tabs to display in the tab bar
-  const currentTabs = activeServerId
-    ? (serverTabs[activeServerId] || [])
-    : localTabs;
-
-  const currentActiveTabId = activeServerId ? activeTabId : activeLocalTabId;
-  const isEmpty = currentTabs.length === 0;
-
-  // Collect ALL tabs across all servers + local to keep instances alive
-  const allTabs = useMemo(() => {
-    const result: Array<{ tab: typeof localTabs[0]; visible: boolean }> = [];
-    // Add all server tabs
-    for (const [sid, tabs] of Object.entries(serverTabs)) {
-      for (const tab of tabs) {
-        result.push({ tab, visible: sid === activeServerId && tab.id === currentActiveTabId });
-      }
-    }
-    // Add all local tabs
-    for (const tab of localTabs) {
-      result.push({ tab, visible: tab.id === activeLocalTabId && !activeServerId });
-    }
-    return result;
-  }, [serverTabs, activeServerId, localTabs, activeLocalTabId, currentActiveTabId]);
+  const { tabs, activeTabId } = useTerminalState();
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface-app)]">
-      {/* Only show tab bar when there are tabs for the active context */}
-      {!isEmpty && (
-        <TerminalTabs
-          tabs={currentTabs}
-          activeTabId={currentActiveTabId}
-          serverId={activeServerId}
-        />
+      {tabs.length > 0 && (
+        <TerminalTabs tabs={tabs} activeTabId={activeTabId} />
       )}
 
       <div className="flex-1 relative">
-        {allTabs.length === 0 ? (
+        {tabs.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <div className="w-14 h-14 rounded-2xl bg-[var(--surface-input)] flex items-center justify-center mb-5">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -58,11 +28,11 @@ export default function TerminalPanel() {
             </p>
           </div>
         ) : (
-          allTabs.map(({ tab, visible }) => (
+          tabs.map((tab) => (
             <div
               key={tab.id}
               className="absolute inset-0"
-              style={{ display: visible ? "block" : "none" }}
+              style={{ display: tab.id === activeTabId ? "block" : "none" }}
             >
               <TerminalView tab={tab} />
             </div>

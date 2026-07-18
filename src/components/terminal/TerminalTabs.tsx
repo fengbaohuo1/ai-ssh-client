@@ -5,10 +5,9 @@ import type { TerminalTab } from "../../types";
 interface Props {
   tabs: TerminalTab[];
   activeTabId: string | null;
-  serverId: string | null;
 }
 
-export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
+export default function TerminalTabs({ tabs, activeTabId }: Props) {
   const dispatch = useTerminalDispatch();
   const { disconnectServer } = useSshActions();
 
@@ -66,15 +65,11 @@ export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (serverId) {
-                    if (tabs.length === 1) {
-                      // Last tab - auto disconnect SSH
-                      disconnectServer(serverId);
-                    }
-                    dispatch({ type: "CLOSE_SERVER_TAB", serverId, tabId: tab.id });
-                  } else {
-                    dispatch({ type: "CLOSE_LOCAL_TAB", tabId: tab.id });
+                  if (tab.serverId) {
+                    // SSH 标签关闭时自动断开连接
+                    disconnectServer(tab.serverId);
                   }
+                  dispatch({ type: "CLOSE_TAB", id: tab.id });
                 }}
                 className="flex items-center justify-center w-4 h-4 rounded-sm
                            text-[var(--text-secondary)] hover:text-[var(--text-primary)]
@@ -90,21 +85,6 @@ export default function TerminalTabs({ tabs, activeTabId, serverId }: Props) {
           );
         })}
       </div>
-
-      {/* Plus button - creates new local terminal only（一个连接一个标签） */}
-      <button
-        onClick={() => {
-          dispatch({ type: "OPEN_LOCAL_TAB", serverName: `终端 ${tabs.length + 1}` });
-        }}
-        className="flex items-center justify-center w-[34px] h-[34px] text-sm text-[var(--text-secondary)]
-                   hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors flex-shrink-0"
-        title="新建本地终端"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
     </div>
   );
 }

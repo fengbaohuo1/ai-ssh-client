@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
 import { useSshState, useSshDispatch, useSshActions } from "../../contexts/SshContext";
-import { useTerminalDispatch } from "../../contexts/TerminalContext";
+import { useTerminalState, useTerminalDispatch } from "../../contexts/TerminalContext";
 
 interface Props {
   server: SshServer;
@@ -9,6 +9,7 @@ interface Props {
 
 export default function SshServerItem({ server }: Props) {
   const { activeConnectionId } = useSshState();
+  const { tabs } = useTerminalState();
   const sshDispatch = useSshDispatch();
   const terminalDispatch = useTerminalDispatch();
   const { connectServer, disconnectServer, removeServer, setActiveConnection } = useSshActions();
@@ -18,16 +19,24 @@ export default function SshServerItem({ server }: Props) {
   const isConnected = server.status === 1;
   const isActive = activeConnectionId === server.id;
 
+  /** 查找该服务器对应的终端标签并激活 */
+  const activateServerTab = useCallback(() => {
+    const tab = tabs.find((t) => t.serverId === server.id);
+    if (tab) {
+      terminalDispatch({ type: "SET_ACTIVE_TAB", id: tab.id });
+    }
+  }, [tabs, server.id, terminalDispatch]);
+
   const handleRowClick = () => {
     // 单击：切换到该服务器的终端标签，同时绑定 AI 到该服务器
-    terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+    activateServerTab();
     if (isConnected) {
       setActiveConnection(isActive ? null : server.id);
     }
   };
 
   const handleDoubleClick = useCallback(async () => {
-    terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+    activateServerTab();
     try {
       const res = await connectServer(server.id);
       if (res?.code === "0000") {
@@ -40,7 +49,7 @@ export default function SshServerItem({ server }: Props) {
     } catch (err) {
       console.error("连接失败", err);
     }
-  }, [server.id, server.name, connectServer, terminalDispatch]);
+  }, [server.id, server.name, connectServer, terminalDispatch, activateServerTab]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -53,7 +62,7 @@ export default function SshServerItem({ server }: Props) {
   }, []);
 
   const handleConnect = useCallback(async () => {
-    terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+    activateServerTab();
     try {
       const res = await connectServer(server.id);
       if (res?.code === "0000") {
@@ -63,11 +72,16 @@ export default function SshServerItem({ server }: Props) {
       console.error("连接失败", err);
     }
     closeMenu();
-  }, [server.id, connectServer, terminalDispatch, closeMenu]);
+  }, [server.id, connectServer, terminalDispatch, closeMenu, activateServerTab]);
 
   const handleDisconnect = async () => {
     await disconnectServer(server.id);
-    terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
+    // 关闭该服务器对应的所有标签
+    for (const tab of tabs) {
+      if (tab.serverId === server.id) {
+        terminalDispatch({ type: "CLOSE_TAB", id: tab.id });
+      }
+    }
     if (isActive) setActiveConnection(null);
     closeMenu();
   };
@@ -83,7 +97,12 @@ export default function SshServerItem({ server }: Props) {
       if (isConnected) {
         await disconnectServer(server.id);
       }
-      terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
+      // 关闭关联标签
+      for (const tab of tabs) {
+        if (tab.serverId === server.id) {
+          terminalDispatch({ type: "CLOSE_TAB", id: tab.id });
+        }
+      }
       await removeServer(server.id);
       closeMenu();
     } else {
@@ -136,9 +155,13 @@ export default function SshServerItem({ server }: Props) {
             e.stopPropagation();
             if (isConnected) {
               await disconnectServer(server.id);
-              terminalDispatch({ type: "RESET_SERVER_TABS", serverId: server.id });
+              for (const tab of tabs) {
+                if (tab.serverId === server.id) {
+                  terminalDispatch({ type: "CLOSE_TAB", id: tab.id });
+                }
+              }
             } else {
-              terminalDispatch({ type: "SET_ACTIVE_SERVER", serverId: server.id });
+              activateServerTab();
               const res = await connectServer(server.id);
               if (res?.code === "0000") {
                 terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
