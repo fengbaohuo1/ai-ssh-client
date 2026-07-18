@@ -20,15 +20,22 @@ export default function AiChatMessage({ message }: Props) {
             : "bg-[var(--surface-input)] text-[var(--text-primary)] rounded-bl-md border border-[var(--border-subtle)]"
         }`}
       >
-        {/* AI 消息：步骤按时间线穿插在文本中 */}
-        {!isUser && message.steps && message.steps.length > 0 ? (
-          <InterleavedContent content={message.content} steps={message.steps} />
-        ) : isUser ? (
+        {/* AI 消息：步骤始终在内容上方渲染（先确保可见，再优化位置） */}
+        {!isUser && message.steps && message.steps.length > 0 && (
+          <div className="mb-2 space-y-1">
+            {message.steps.map((s, i) => (
+              <ToolCallItem key={i} step={s} />
+            ))}
+          </div>
+        )}
+
+        {/* Message content */}
+        {isUser ? (
           <div className="whitespace-pre-wrap break-words">{message.content}</div>
         ) : (
           <div className="prose-custom break-words">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {normalizeContent(message.content) || ""}
+              {message.content || ""}
             </ReactMarkdown>
           </div>
         )}
@@ -66,47 +73,6 @@ export default function AiChatMessage({ message }: Props) {
  * contentOffset 基于原始 content（未归一化），所以 cursor 也在原始 content 上移动。
  * 每个文本段单独归一化再渲染，避免破坏表格等 Markdown 格式。
  */
-function InterleavedContent({ content, steps }: { content: string; steps: StepEvent[] }) {
-  const sorted = [...steps].sort((a, b) => (a.contentOffset ?? 0) - (b.contentOffset ?? 0));
-
-  const segments: React.ReactNode[] = [];
-  let cursor = 0;
-
-  for (const step of sorted) {
-    const offset = step.contentOffset ?? 0;
-    // 1) 原始 content 上截段，cursor/offset 对齐原始长度
-    if (offset > cursor && cursor < content.length) {
-      const raw = content.slice(cursor, Math.min(offset, content.length));
-      if (raw.trim()) {
-        segments.push(
-          <div key={`t-${cursor}`} className="prose-custom break-words">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {raw}
-            </ReactMarkdown>
-          </div>
-        );
-      }
-    }
-    cursor = Math.max(cursor, offset);
-    // 2) 步骤卡片
-    segments.push(<ToolCallSteps key={`s-${cursor}`} steps={[step]} />);
-  }
-
-  // 3) 剩余尾部
-  if (cursor < content.length) {
-    const rest = content.slice(cursor);
-    segments.push(
-      <div key={`t-${cursor}`} className="prose-custom break-words">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-          {rest}
-        </ReactMarkdown>
-      </div>
-    );
-  }
-
-  return <div className="space-y-1">{segments}</div>;
-}
-
 // ===== 可折叠的工具调用卡片 =====
 
 /**
@@ -123,16 +89,6 @@ function jsonField(json: string | object | undefined | null, key: string): strin
   } catch {
     return "";
   }
-}
-
-function ToolCallSteps({ steps }: { steps: StepEvent[] }) {
-  return (
-    <>
-      {steps.map((step, i) => (
-        <ToolCallItem key={i} step={step} />
-      ))}
-    </>
-  );
 }
 
 function ToolCallItem({ step }: { step: StepEvent }) {
@@ -317,42 +273,6 @@ const markdownComponents: Components = {
   },
 };
 
-// ===== Content Normalization =====
-
-/**
- * 归一化 LLM 输出内容：压缩连续的 \n\n Token 碎片为空格，
- * 避免每字一段的渲染问题。
- */
-/**
- * 归一化 LLM 流式输出的换行符碎块（保护代码块和表格）。
- * - 代码块 ``` ``` 内部不动
- * - 表格行（以 | 开头）之间的换行保留
- * - 其他位置的连续 \n 合并为空格
- */
-function normalizeContent(text: string): string {
-  const blocks: string[] = [];
-  // 1) 保护代码块
-  let s = text.replace(/```[\s\S]*?```/g, (m) => {
-    blocks.push(m);
-    return `\0CODE${blocks.length - 1}\0`;
-  });
-
-  // 2) 保护表格（连续以 | 开头的行之间只保留 \n，不合并为空格）
-  //    先统一换行符
-  s = s.replace(/\r\n/g, '\n');
-  //    把连续的表格行之间的空行干掉（表格行之间不需要 \n\n）
-  s = s.replace(/(\n\|[^\n]*)\n{2,}(?=\|)/g, '$1\n');
-
-  // 3) 其他位置的连续 \n 合并为空格
-  s = s
-    .replace(/\n{3,}/g, '\n\n')     // 3+ → 段落分隔
-    .replace(/\n{2}/g, ' ')          // 2 → 空格（合并碎块）
-    .replace(/ {2,}/g, ' ')
-    .trim();
-
-  // 4) 恢复代码块
-  return s.replace(/\0CODE(\d+)\0/g, (_, idx) => blocks[parseInt(idx)] || "");
-}
 
 // ===== Time Formatting =====
 function formatTime(timestamp: number): string {
