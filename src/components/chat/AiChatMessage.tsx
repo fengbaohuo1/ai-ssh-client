@@ -11,6 +11,11 @@ interface Props {
 export default function AiChatMessage({ message }: Props) {
   const isUser = message.role === "user";
 
+  // [DEBUG] 步骤渲染
+  if (!isUser && message.steps?.length) {
+    console.log("[ChatMsg] rendering steps:", message.steps.length, message.steps);
+  }
+
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div

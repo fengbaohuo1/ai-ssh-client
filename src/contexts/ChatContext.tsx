@@ -375,10 +375,12 @@ export function useChatActions() {
                   });
                 }
                 // 解析工具调用步骤
+                // [DEBUG] 工具步骤
                 if (data.s) {
                   const steps = Array.isArray(data.s) ? data.s : [data.s];
                   for (const step of steps) {
                     if (step.t === "tool_call" || step.t === "tool_result") {
+                      console.log("[Chat] APPEND_STEP", step.t, step.n, "msgId:", assistantId);
                       dispatch({
                         type: "APPEND_STEP",
                         messageId: assistantId,
