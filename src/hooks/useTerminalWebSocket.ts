@@ -33,7 +33,12 @@ export function useTerminalWebSocket(
       ws.onopen = () => {
         hasConnectedRef.current = true;
         onStatusChange?.("connected");
-        terminalRef.current?.focus();
+        // 强制重置输入锁定（防止前一次 AI 操作遗留 disableStdin=true）
+        const term = terminalRef.current;
+        if (term) {
+          term.options.disableStdin = false;
+          term.focus();
+        }
       };
 
       ws.onmessage = (event) => {
