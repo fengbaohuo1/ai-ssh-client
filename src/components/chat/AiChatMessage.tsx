@@ -113,11 +113,12 @@ function InterleavedContent({ content, steps }: { content: string; steps: StepEv
 /**
  * 解析 JSON 字段，支持普通 JSON 和 SshExecuteAdkTool 返回的带 output 字段的 Map JSON。
  */
-function jsonField(json: string | undefined, key: string): string {
+function jsonField(json: string | object | undefined | null, key: string): string {
   if (!json) return "";
   try {
-    const obj = JSON.parse(json);
-    const val = obj[key];
+    // 后端现在发的是 JSON 对象（不再是字符串），需要兼容两种输入
+    const obj = typeof json === "string" ? JSON.parse(json) : json;
+    const val = (obj as Record<string, unknown>)[key];
     if (val === null || val === undefined) return "";
     return String(val);
   } catch {
