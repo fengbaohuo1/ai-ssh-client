@@ -189,11 +189,6 @@ function ToolCallItem({ step }: { step: StepEvent }) {
           <span className="ml-auto text-[9px] text-[var(--status-error)] flex-shrink-0">空</span>
         )}
 
-        {isCall && (
-          <span className="ml-auto flex-shrink-0">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--status-warning)] animate-pulse" />
-          </span>
-        )}
       </div>
 
       {/* 展开内容 */}
