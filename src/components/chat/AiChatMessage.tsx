@@ -102,10 +102,10 @@ function ToolCallItem({ step }: { step: StepEvent }) {
   const [open, setOpen] = useState(false);
   const isCall = step.t === "tool_call";
 
-  console.log("[ToolCallItem] render", step.t, "n=", step.n, "a=", typeof step.a, "r=", typeof step.r);
+  // [DEBUG] 完整 step 内容
+  console.log("[ToolCallItem] step=", JSON.stringify(step), "keys=", Object.keys(step));
 
   const command = isCall ? jsonField(step.a, "command") : "";
-  if (isCall) console.log("[ToolCallItem] command=", JSON.stringify(command));
   const resultOutput = !isCall ? jsonField(step.r, "output") : "";
   const resultOk = !isCall ? jsonField(step.r, "success") : null;
 
@@ -141,8 +141,13 @@ function ToolCallItem({ step }: { step: StepEvent }) {
 
         {!open && (
           <span className="text-[10px] text-[var(--text-tertiary)] font-mono truncate ml-1">
-            {command || resultOutput}
+            {command || resultOutput || JSON.stringify(step.a || step.r || "")}
           </span>
+        )}
+
+        {/* [DEBUG] 步骤原始数据 */}
+        {command || resultOutput ? null : (
+          <span className="ml-auto text-[9px] text-[var(--status-error)] flex-shrink-0">空</span>
         )}
 
         {isCall && (
