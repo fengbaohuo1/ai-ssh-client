@@ -52,6 +52,8 @@ export function useTerminalWebSocket(
   const sendData = useCallback((data: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(data);
+    } else {
+      console.warn("[WS] 键盘输入丢弃: readyState=", wsRef.current?.readyState, "data=", data);
     }
   }, []);
 
