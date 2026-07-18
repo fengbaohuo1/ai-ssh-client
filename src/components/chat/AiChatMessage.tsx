@@ -100,7 +100,10 @@ function ToolCallItem({ step }: { step: StepEvent }) {
   const [open, setOpen] = useState(false);
   const isCall = step.t === "tool_call";
 
+  console.log("[ToolCallItem] render", step.t, "n=", step.n, "a=", typeof step.a, "r=", typeof step.r);
+
   const command = isCall ? jsonField(step.a, "command") : "";
+  if (isCall) console.log("[ToolCallItem] command=", JSON.stringify(command));
   const resultOutput = !isCall ? jsonField(step.r, "output") : "";
   const resultOk = !isCall ? jsonField(step.r, "success") : null;
 
