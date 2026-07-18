@@ -12,47 +12,57 @@ export function useTerminalWebSocket(
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const hasConnectedRef = useRef(false);
+  const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const connectWs = useCallback(() => {
     if (!connectionId) return;
 
-    const url = `ws://localhost:8091/ws/terminal/${connectionId}`;
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
+    // 防止重复连接（React StrictMode 开发模式下 effect 会触发两次）
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
 
-    ws.onopen = () => {
-      hasConnectedRef.current = true;
-      onStatusChange?.("connected");
-      terminalRef.current?.focus();
-    };
+    // 延迟连接，让 StrictMode 的 cleanup 有优先执行机会
+    // 这样第一次 mount 的 cleanup 会 clearTimeout 取消连接，
+    // 只有第二次 mount 的连接才真正建立
+    connectTimerRef.current = setTimeout(() => {
+      const url = `ws://localhost:8091/ws/terminal/${connectionId}`;
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      const data = event.data as string;
-      const terminal = terminalRef.current;
-      if (!terminal) return;
+      ws.onopen = () => {
+        hasConnectedRef.current = true;
+        onStatusChange?.("connected");
+        terminalRef.current?.focus();
+      };
 
-      // 检测 AI 锁定/解锁消息，控制终端输入
-      if (data.startsWith(AI_LOCK_PREFIX)) {
-        terminal.options.disableStdin = true;
-      } else if (data.startsWith(AI_UNLOCK_PREFIX)) {
-        terminal.options.disableStdin = false;
-      }
+      ws.onmessage = (event) => {
+        const data = event.data as string;
+        const terminal = terminalRef.current;
+        if (!terminal) return;
 
-      // 所有消息都写入终端（包括 AI 状态消息，提供视觉反馈）
-      terminal.write(data);
-    };
+        // 检测 AI 锁定/解锁消息，控制终端输入
+        if (data.startsWith(AI_LOCK_PREFIX)) {
+          terminal.options.disableStdin = true;
+        } else if (data.startsWith(AI_UNLOCK_PREFIX)) {
+          terminal.options.disableStdin = false;
+        }
 
-    ws.onclose = () => {
-      onStatusChange?.("disconnected");
-      if (hasConnectedRef.current) {
-        terminalRef.current?.write("\r\n[31m[连接已断开][0m\r\n");
-      }
-      hasConnectedRef.current = false;
-    };
+        terminal.write(data);
+      };
 
-    ws.onerror = () => {
-      onStatusChange?.("error");
-    };
+      ws.onclose = () => {
+        onStatusChange?.("disconnected");
+        if (hasConnectedRef.current) {
+          terminalRef.current?.write("\r\n[31m[连接已断开][0m\r\n");
+        }
+        hasConnectedRef.current = false;
+      };
+
+      ws.onerror = () => {
+        onStatusChange?.("error");
+      };
+    }, 0);
   }, [connectionId, terminalRef, onStatusChange]);
 
   const sendData = useCallback((data: string) => {
@@ -62,6 +72,11 @@ export function useTerminalWebSocket(
   }, []);
 
   const disconnectWs = useCallback(() => {
+    // 取消尚未开始的延迟连接
+    if (connectTimerRef.current) {
+      clearTimeout(connectTimerRef.current);
+      connectTimerRef.current = null;
+    }
     hasConnectedRef.current = false;
     wsRef.current?.close();
     wsRef.current = null;
