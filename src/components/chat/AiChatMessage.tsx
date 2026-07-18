@@ -4,33 +4,40 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
-/** 切割后的段落：文本段 或 步骤卡片 */
+/** 切割后的段落：文本段 或 合并的工具卡片 */
 type Segment =
   | { type: "text"; content: string }
-  | { type: "step"; step: StepEvent };
+  | { type: "tool"; call: StepEvent; result: StepEvent | null };
 
 /**
- * 将消息文本按各步骤的 contentOffset 切割，步骤卡片穿插在对应段落之间。
- * 每个文本段独立传给 ReactMarkdown，避免 \n\n 跨段落干扰 Markdown 解析。
+ * 将消息文本按步骤的 contentOffset 切割，步骤卡片穿插在对应段落之间。
+ * tool_call + tool_result 合并为一张卡片。
  */
 function interleaveSteps(content: string, steps: StepEvent[]): Segment[] {
   if (!steps || steps.length === 0) return [{ type: "text", content }];
 
-  const sorted = [...steps].sort(
-    (a, b) => (a.contentOffset ?? 0) - (b.contentOffset ?? 0)
-  );
+  // 配对：tool_call 和紧随的 tool_result 合并
+  const merged: { call: StepEvent; result: StepEvent | null; offset: number }[] = [];
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    if (s.t === "tool_call") {
+      const next = steps[i + 1];
+      const result = (next && next.t === "tool_result") ? next : null;
+      if (result) i++; // 跳过已配对的 result
+      merged.push({ call: s, result, offset: s.contentOffset ?? 0 });
+    }
+  }
+  if (merged.length === 0) return [{ type: "text", content }];
 
   const segments: Segment[] = [];
   let cursor = 0;
 
-  for (const step of sorted) {
-    const offset = Math.min(step.contentOffset ?? 0, content.length);
-
+  for (const m of merged) {
+    const offset = Math.min(m.offset, content.length);
     if (offset > cursor) {
       segments.push({ type: "text", content: content.slice(cursor, offset) });
     }
-
-    segments.push({ type: "step", step });
+    segments.push({ type: "tool", call: m.call, result: m.result });
     cursor = Math.max(cursor, offset);
   }
 
@@ -89,8 +96,8 @@ export default function AiChatMessage({ message }: Props) {
             );
           }
           return (
-            <div key={`s-${i}`} className="my-1">
-              <ToolCallItem step={seg.step} />
+            <div key={`tool-${i}`} className="my-1">
+              <MergedToolCard call={seg.call} result={seg.result} />
             </div>
           );
         })}
@@ -117,36 +124,16 @@ export default function AiChatMessage({ message }: Props) {
   );
 }
 
-// ===== 可折叠的工具调用卡片 =====
+// ===== 合并的工具卡片 =====
 
 /**
- * 解析 JSON 字段，支持普通 JSON 和 SshExecuteAdkTool 返回的带 output 字段的 Map JSON。
+ * 合并 tool_call + tool_result 为一张卡片：命令 + 结果，可折叠
  */
-function jsonField(json: string | object | undefined | null, key: string): string {
-  if (!json) { console.warn("[jsonField] null input"); return ""; }
-  try {
-    console.log("[jsonField] typeof=", typeof json, "str=", JSON.stringify(json), "key=", key);
-    const obj = typeof json === "string" ? JSON.parse(json) : json;
-    if (typeof obj !== "object" || obj === null) { console.warn("[jsonField] not object"); return ""; }
-    const val = (obj as Record<string, unknown>)[key];
-    if (val === null || val === undefined) return "";
-    return String(val);
-  } catch (e) {
-    console.warn("[jsonField] caught:", e);
-    return "";
-  }
-}
-
-function ToolCallItem({ step }: { step: StepEvent }) {
+function MergedToolCard({ call, result }: { call: StepEvent; result: StepEvent | null }) {
   const [open, setOpen] = useState(false);
-  const isCall = step.t === "tool_call";
-
-  // [DEBUG] 完整 step 内容
-  console.log("[ToolCallItem] step=", JSON.stringify(step), "keys=", Object.keys(step));
-
-  const command = isCall ? jsonField(step.a, "command") : "";
-  const resultOutput = !isCall ? jsonField(step.r, "output") : "";
-  const resultOk = !isCall ? jsonField(step.r, "success") : null;
+  const command = jsonField(call.a, "command");
+  const resultOk = result ? jsonField(result.r, "success") : null;
+  const succeeded = resultOk !== "false" && resultOk !== null;
 
   return (
     <div
@@ -154,67 +141,65 @@ function ToolCallItem({ step }: { step: StepEvent }) {
                   transition-colors duration-100 hover:border-[var(--border-default)]"
       onClick={() => setOpen(!open)}
     >
-      {/* 折叠栏 (summary) */}
+      {/* 折叠栏 */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 select-none">
-        <svg
-          width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.5" strokeLinecap="round"
-          className={`text-[var(--text-tertiary)] transition-transform duration-150 ${
-            open ? "rotate-90" : ""
-          }`}
-        >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="2.5" strokeLinecap="round"
+             className={`text-[var(--text-tertiary)] transition-transform duration-150 ${open ? "rotate-90" : ""}`}>
           <polyline points="9,18 15,12 9,6" />
         </svg>
 
-        {isCall ? (
-          <span className="text-[var(--status-warning)] flex-shrink-0 text-[11px]">🔧</span>
-        ) : (
-          <span className={`flex-shrink-0 text-[11px] ${resultOk === "false" ? "text-[var(--status-error)]" : "text-[var(--status-success)]"}`}>
-            {resultOk === "false" ? "✗" : "✓"}
-          </span>
-        )}
-
-        <span className="font-medium text-[11px] text-[var(--text-primary)]">
-          {step.n || "工具"}
+        <span className={`flex-shrink-0 text-[11px] ${result ? (succeeded ? "text-[var(--status-success)]" : "text-[var(--status-error)]") : "text-[var(--status-warning)]"}`}>
+          {result ? (succeeded ? "✓" : "✗") : "⏳"}
         </span>
 
-        {!open && (
+        <span className="font-medium text-[11px] text-[var(--text-primary)]">
+          {call.n || "executeCommand"}
+        </span>
+
+        {!open && command && (
           <span className="text-[10px] text-[var(--text-tertiary)] font-mono truncate ml-1">
-            {command || resultOutput || JSON.stringify(step.a || step.r || "")}
+            {command}
           </span>
         )}
-
-        {/* [DEBUG] 步骤原始数据 */}
-        {command || resultOutput ? null : (
-          <span className="ml-auto text-[9px] text-[var(--status-error)] flex-shrink-0">空</span>
-        )}
-
       </div>
 
       {/* 展开内容 */}
       {open && (
         <div className="border-t border-[var(--border-subtle)]" onClick={(e) => e.stopPropagation()}>
-          {isCall && command && (
+          {command && (
             <div className="px-3 py-1.5">
               <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">命令</div>
-              <div className="text-[11px] font-mono text-[var(--terminal-green)] bg-[var(--surface-input)] rounded px-2 py-1">
-                $ {command}
+              <pre className="text-[11px] font-mono text-[var(--terminal-green)] bg-[var(--surface-input)] rounded px-2 py-1
+                             whitespace-pre-wrap break-all">{command}</pre>
+            </div>
+          )}
+          {result && (() => {
+            const output = jsonField(result.r, "output");
+            if (!output) return null;
+            return (
+              <div className="px-3 py-1.5">
+                <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">结果</div>
+                <pre className="text-[10px] font-mono text-[var(--text-secondary)] leading-relaxed
+                                max-h-[300px] overflow-y-auto whitespace-pre-wrap break-all">{output}</pre>
               </div>
-            </div>
-          )}
-          {!isCall && resultOutput && (
-            <div className="px-3 py-1.5">
-              <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">返回结果</div>
-              <pre className="text-[10px] font-mono text-[var(--text-secondary)] leading-relaxed
-                              max-h-[200px] overflow-y-auto whitespace-pre-wrap break-all">
-                {resultOutput}
-              </pre>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>
   );
+}
+
+/** 解析 JSON 字段 */
+function jsonField(json: string | object | undefined | null, key: string): string {
+  if (!json) return "";
+  try {
+    const obj = typeof json === "string" ? JSON.parse(json) : json;
+    if (typeof obj !== "object" || obj === null) return "";
+    const val = (obj as Record<string, unknown>)[key];
+    return val != null ? String(val) : "";
+  } catch { return ""; }
 }
 
 // ===== Custom Markdown Components =====
