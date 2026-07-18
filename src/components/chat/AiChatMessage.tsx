@@ -1,4 +1,7 @@
 import type { ChatMessage } from "../../types";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 
 interface Props {
   message: ChatMessage;
@@ -16,10 +19,19 @@ export default function AiChatMessage({ message }: Props) {
             : "bg-[var(--surface-input)] text-[var(--text-primary)] rounded-bl-md border border-[var(--border-subtle)]"
         }`}
       >
-        {/* Message content with markdown */}
-        <div className="whitespace-pre-wrap break-words">
-          {renderMarkdown(message.content)}
-        </div>
+        {/* Message content with full Markdown */}
+        {isUser ? (
+          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        ) : (
+          <div className="prose-custom break-words">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+            >
+              {message.content || ""}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {/* Tool call steps (only for assistant messages) */}
         {!isUser && message.steps && message.steps.length > 0 && (
@@ -81,56 +93,119 @@ export default function AiChatMessage({ message }: Props) {
   );
 }
 
-// ===== Simple Markdown Rendering =====
-function renderMarkdown(content: string): React.ReactNode {
-  if (!content) return null;
+// ===== Custom Markdown Components =====
 
-  const parts: React.ReactNode[] = [];
-  const segments = content.split(/(```[\s\S]*?```)/g);
-
-  segments.forEach((seg, i) => {
-    if (seg.startsWith("```") && seg.endsWith("```")) {
-      const code = seg.slice(3, -3).replace(/^[a-z]*\n?/, "");
-      parts.push(
-        <pre
-          key={i}
-          className="bg-[var(--surface-app)] rounded-lg px-3 py-2 my-1.5 overflow-x-auto text-[11px]
-                     border border-[var(--border-default)] font-mono"
+const markdownComponents: Components = {
+  // Code blocks (``` ```)
+  code({ className, children, ...props }) {
+    const isInline = !className;
+    if (isInline) {
+      return (
+        <code
+          className="bg-[var(--surface-app)] text-[var(--terminal-cyan)] px-1.5 py-0.5 rounded-md text-[11px]
+                     font-mono border border-[var(--border-subtle)]"
+          {...props}
         >
-          <code>{code.trim()}</code>
-        </pre>
+          {children}
+        </code>
       );
-    } else {
-      const inlineParts = seg.split(/(`[^`]+`)/g).map((inline, j) => {
-        if (inline.startsWith("`") && inline.endsWith("`")) {
-          return (
-            <code
-              key={j}
-              className="bg-[var(--surface-app)] text-[var(--terminal-cyan)] px-1.5 py-0.5 rounded-md text-[11px] font-mono border border-[var(--border-subtle)]"
-            >
-              {inline.slice(1, -1)}
-            </code>
-          );
-        }
-        // Bold **text**
-        const boldParts = inline.split(/(\*\*[^*]+\*\*)/g).map((bold, k) => {
-          if (bold.startsWith("**") && bold.endsWith("**")) {
-            return (
-              <strong key={k} className="font-semibold text-[var(--text-primary)]">
-                {bold.slice(2, -2)}
-              </strong>
-            );
-          }
-          return bold;
-        });
-        return <span key={j}>{boldParts}</span>;
-      });
-      parts.push(<span key={i}>{inlineParts}</span>);
     }
-  });
+    return (
+      <pre
+        className="bg-[var(--surface-app)] rounded-lg px-3 py-2 my-1.5 overflow-x-auto text-[11px]
+                   border border-[var(--border-default)] font-mono"
+      >
+        <code className={className} {...props}>
+          {children}
+        </code>
+      </pre>
+    );
+  },
 
-  return <>{parts}</>;
-}
+  // Paragraphs — tighter spacing in chat bubbles
+  p({ children }) {
+    return <p className="my-1 last:mb-0">{children}</p>;
+  },
+
+  // Headings
+  h1({ children }) {
+    return <h1 className="text-sm font-bold my-2 text-[var(--text-primary)]">{children}</h1>;
+  },
+  h2({ children }) {
+    return <h2 className="text-[13px] font-bold my-1.5 text-[var(--text-primary)]">{children}</h2>;
+  },
+  h3({ children }) {
+    return <h3 className="text-xs font-semibold my-1 text-[var(--text-primary)]">{children}</h3>;
+  },
+
+  // Lists
+  ul({ children }) {
+    return <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>;
+  },
+  ol({ children }) {
+    return <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>;
+  },
+  li({ children }) {
+    return <li className="text-[var(--text-primary)]">{children}</li>;
+  },
+
+  // Links
+  a({ href, children }) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[var(--accent-bg)] underline hover:opacity-80"
+      >
+        {children}
+      </a>
+    );
+  },
+
+  // Tables (GFM)
+  table({ children }) {
+    return (
+      <div className="overflow-x-auto my-1.5">
+        <table className="min-w-full text-[11px] border-collapse border border-[var(--border-default)]">
+          {children}
+        </table>
+      </div>
+    );
+  },
+  thead({ children }) {
+    return <thead className="bg-[var(--surface-app)]">{children}</thead>;
+  },
+  th({ children }) {
+    return (
+      <th className="border border-[var(--border-default)] px-2 py-1 font-semibold text-left">
+        {children}
+      </th>
+    );
+  },
+  td({ children }) {
+    return <td className="border border-[var(--border-default)] px-2 py-1">{children}</td>;
+  },
+
+  // Blockquotes
+  blockquote({ children }) {
+    return (
+      <blockquote className="border-l-2 border-[var(--accent-bg)] pl-3 my-1.5 text-[var(--text-secondary)] italic">
+        {children}
+      </blockquote>
+    );
+  },
+
+  // Horizontal rules
+  hr() {
+    return <hr className="my-2 border-[var(--border-subtle)]" />;
+  },
+
+  // Inline bold/strong
+  strong({ children }) {
+    return <strong className="font-semibold text-[var(--text-primary)]">{children}</strong>;
+  },
+};
 
 // ===== Helpers =====
 function truncate(s: string, max: number): string {
