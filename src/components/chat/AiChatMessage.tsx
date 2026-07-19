@@ -5,16 +5,12 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
 /**
- * 规整换行——用密度区分 artifact 和真实段落分隔：
- *   高密度（每20字超过1个 \n\n）→ 直接去掉换行（Spring AI artifact）
- *   低密度 → 3+ \n 压缩为 \n\n（保留真实段落分隔）
+ * 规整换行：
+ *   有工具调用 → 所有 \n+ 去掉（工具循环中无真实段落，全部是 Spring AI artifact）
+ *   无工具调用 → 3+ \n 压缩为 \n\n（保留真实段落分隔）
  */
-function norm(s: string): string {
-  const breaks = (s.match(/\n\n/g) || []).length;
-  const len = s.replace(/\s/g, "").length || 1;
-  if (breaks > 0 && len / breaks < 20) {
-    return s.replace(/\n+/g, "");
-  }
+function norm(s: string, hasSteps: boolean): string {
+  if (hasSteps) return s.replace(/\n+/g, "");
   return s.replace(/\n{3,}/g, "\n\n");
 }
 
@@ -104,7 +100,7 @@ export default function AiChatMessage({ message }: Props) {
                   remarkPlugins={[remarkGfm]}
                   components={markdownComponents}
                 >
-                  {norm(seg.content)}
+                  {norm(seg.content, (message.steps?.length ?? 0) > 0)}
                 </ReactMarkdown>
               </div>
             );
