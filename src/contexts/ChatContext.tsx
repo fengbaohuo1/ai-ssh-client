@@ -94,25 +94,21 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
     case "APPEND_STREAM": {
-      // 去重：纯空白 chunk 在已有 \n 结尾时跳过（ADK artifact），但保留第一个作段落分隔
-      const chunk = action.chunk;
-      const isWsChunk = chunk.trim().length === 0;
       return {
         ...state,
         conversations: state.conversations.map((c) =>
           c.id === state.activeConversationId
             ? {
                 ...c,
-                messages: c.messages.map((m) => {
-                  if (m.id !== action.messageId) return m;
-                  if (isWsChunk && m.content.endsWith("\n")) return m; // 已有换行，跳过
-                  return { ...m, content: m.content + chunk };
-                }),
+                messages: c.messages.map((m) =>
+                  m.id === action.messageId
+                    ? { ...m, content: m.content + action.chunk }
+                    : m
+                ),
               }
             : c
         ),
       };
-    }
     case "APPEND_STEP":
       return {
         ...state,
