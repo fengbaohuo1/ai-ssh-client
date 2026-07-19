@@ -4,8 +4,19 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
-/** 规整连续换行：3+ → 2 个（一个段落分隔），ADK artifact 无害化 */
-function norm(s: string): string { return s.replace(/\n{3,}/g, "\n\n"); }
+/**
+ * 规整换行——用密度区分 artifact 和真实段落分隔：
+ *   高密度（每20字超过1个 \n\n）→ 全部换成空格（Spring AI artifact）
+ *   低密度 → 3+ \n 压缩为 \n\n（保留真实段落分隔）
+ */
+function norm(s: string): string {
+  const breaks = (s.match(/\n\n/g) || []).length;
+  const len = s.replace(/\s/g, "").length || 1;
+  if (breaks > 0 && len / breaks < 20) {
+    return s.replace(/\n+/g, " ");
+  }
+  return s.replace(/\n{3,}/g, "\n\n");
+}
 
 /** 切割后的段落：文本段 或 合并的工具卡片 */
 type Segment =
