@@ -87,7 +87,13 @@ export default function AiChatMessage({ message }: Props) {
       <div className="w-full min-w-0 text-xs leading-relaxed">
         {segments.map((seg, i) => {
           if (seg.type === "text") {
-            return (
+            // 流式期间：纯文本渲染（\n→空格）避免 ADK artifact 换行泛滥
+            // 完成后：Markdown 渲染 + norm() 规整
+            return message.streaming ? (
+              <div key={`t-${i}`} className="whitespace-pre-wrap break-words">
+                {seg.content.replace(/\n/g, " ")}
+              </div>
+            ) : (
               <div key={`t-${i}`} className="prose-custom break-words">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}

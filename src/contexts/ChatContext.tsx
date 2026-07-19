@@ -93,7 +93,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ),
       };
     }
-    case "APPEND_STREAM": {
+    case "APPEND_STREAM":
       return {
         ...state,
         conversations: state.conversations.map((c) =>
