@@ -4,6 +4,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
+/** 规整连续换行：3+ → 2 个（一个段落分隔），ADK artifact 无害化 */
+function norm(s: string): string { return s.replace(/\n{3,}/g, "\n\n"); }
+
 /** 切割后的段落：文本段 或 合并的工具卡片 */
 type Segment =
   | { type: "text"; content: string }
@@ -90,7 +93,7 @@ export default function AiChatMessage({ message }: Props) {
                   remarkPlugins={[remarkGfm]}
                   components={markdownComponents}
                 >
-                  {seg.content}
+                  {norm(seg.content)}
                 </ReactMarkdown>
               </div>
             );
