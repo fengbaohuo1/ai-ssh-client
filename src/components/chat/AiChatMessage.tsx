@@ -30,14 +30,16 @@ type Segment =
 function interleaveSteps(content: string, steps: StepEvent[]): Segment[] {
   if (!steps || steps.length === 0) return [{ type: "text", content }];
 
-  // 配对：tool_call 和紧随的 tool_result 合并
+  // 配对：tool_call 与 tool_result 按 FIFO 队列配对。
+  // 后端可能连续发多个 tool_call（一次多命令）再连续发多个 tool_result，
+  // 不能只配对"紧邻下一个 step"（会导致前面的 call 配不到 result，显示沙漏）。
+  const results = steps.filter((s) => s.t === "tool_result");
+  let resultIdx = 0;
   const merged: { call: StepEvent; result: StepEvent | null; offset: number }[] = [];
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
     if (s.t === "tool_call") {
-      const next = steps[i + 1];
-      const result = (next && next.t === "tool_result") ? next : null;
-      if (result) i++; // 跳过已配对的 result
+      const result = resultIdx < results.length ? results[resultIdx++] : null;
       merged.push({ call: s, result, offset: s.contentOffset ?? 0 });
     }
   }
