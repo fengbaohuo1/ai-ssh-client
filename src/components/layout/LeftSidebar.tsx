@@ -1,5 +1,6 @@
 import { useLayoutStore } from "../../stores/layoutStore";
 import SshSidebar from "../ssh/SshSidebar";
+import ChatHistorySidebar from "../history/ChatHistorySidebar";
 import PlaceholderView from "./PlaceholderView";
 
 export default function LeftSidebar() {
@@ -9,6 +10,8 @@ export default function LeftSidebar() {
   switch (view) {
     case "ssh":
       return <SshSidebar />;
+    case "history":
+      return <ChatHistorySidebar />;
     case "files":
       return <PlaceholderView title="文件浏览" icon="📁" description="文件目录浏览功能即将推出" onClose={toggleLeft} />;
     case "sftp":

@@ -3,6 +3,7 @@ import type React from "react";
 
 const topViews: { id: SidebarView; label: string }[] = [
   { id: "ssh", label: "SSH 服务器" },
+  { id: "history", label: "会话历史" },
   { id: "files", label: "文件浏览" },
   { id: "sftp", label: "SFTP 传输" },
 ];
@@ -20,6 +21,16 @@ function SshIcon() {
       <rect x="2.5" y="4" width="15" height="12" rx="2" />
       <path d="M5.5 7.5 8 10l-2.5 2.5" />
       <line x1="9" y1="12.5" x2="12.5" y2="12.5" />
+    </svg>
+  );
+}
+
+/** SVG icon for History — clock */
+function HistoryIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="7.5" />
+      <polyline points="10,5.5 10,10 13.5,12" />
     </svg>
   );
 }
@@ -78,6 +89,7 @@ function PluginsIcon() {
 
 const iconMap: Record<SidebarView, React.FC> = {
   ssh: SshIcon,
+  history: HistoryIcon,
   files: FilesIcon,
   sftp: SftpIcon,
   mcp: McpIcon,

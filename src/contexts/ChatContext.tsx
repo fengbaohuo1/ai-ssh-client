@@ -3,12 +3,48 @@ import type { ChatMessage, Conversation, StepEvent } from "../types";
 import { listAgents, createSession, chatStreamUrl } from "../api/chat";
 import type { AgentConfig } from "../api/chat";
 
+// ===== Persistence =====
+const STORAGE_KEY = "ai-ssh-chat-v1";
+
+interface PersistedChat {
+  conversations: Conversation[];
+  activeConversationId: string;
+  selectedAgentId: string;
+}
+
+/** 序列化前剥离流式标记——重启恢复的消息一律是"已完成"状态 */
+function sanitizeForStorage(conversations: Conversation[]): Conversation[] {
+  return conversations.map((c) => ({
+    ...c,
+    messages: c.messages.map((m) => ({
+      ...m,
+      streaming: false,
+      status: m.status === "sending" ? "sent" : m.status,
+    })),
+  }));
+}
+
+function loadPersisted(): PersistedChat | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedChat;
+    if (!Array.isArray(parsed.conversations) || parsed.conversations.length === 0) return null;
+    return {
+      conversations: sanitizeForStorage(parsed.conversations),
+      activeConversationId: parsed.activeConversationId,
+      selectedAgentId: parsed.selectedAgentId,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ===== State & Actions =====
 interface ChatState {
   conversations: Conversation[];
   activeConversationId: string;
   selectedAgentId: string;
-  sessionId: string | null;
   agents: AgentConfig[];
   loadingAgents: boolean;
   sending: boolean;
@@ -28,7 +64,8 @@ type ChatAction =
   | { type: "STOP_STREAMING" }
   | { type: "DELETE_CONVERSATION"; id: string }
   | { type: "SWITCH_CONVERSATION"; id: string }
-  | { type: "SET_SESSION_ID"; sessionId: string }
+  | { type: "SET_CONVERSATION_SESSION"; id: string; sessionId: string }
+  | { type: "LOAD_HISTORY"; conversation: Conversation }
   | { type: "SET_AGENTS"; agents: AgentConfig[] }
   | { type: "SET_LOADING_AGENTS"; loading: boolean }
   | { type: "SET_SENDING"; sending: boolean }
@@ -47,17 +84,28 @@ function createConversation(): Conversation {
   };
 }
 
-const initialConversation = createConversation();
-
-const initialState: ChatState = {
-  conversations: [initialConversation],
-  activeConversationId: initialConversation.id,
-  selectedAgentId: "general",
-  sessionId: null,
-  agents: [],
-  loadingAgents: false,
-  sending: false,
-};
+function initState(): ChatState {
+  const persisted = loadPersisted();
+  if (persisted) {
+    return {
+      conversations: persisted.conversations,
+      activeConversationId: persisted.activeConversationId,
+      selectedAgentId: persisted.selectedAgentId,
+      agents: [],
+      loadingAgents: false,
+      sending: false,
+    };
+  }
+  const initialConversation = createConversation();
+  return {
+    conversations: [initialConversation],
+    activeConversationId: initialConversation.id,
+    selectedAgentId: "general",
+    agents: [],
+    loadingAgents: false,
+    sending: false,
+  };
+}
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -227,8 +275,27 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     }
     case "SWITCH_CONVERSATION":
       return { ...state, activeConversationId: action.id };
-    case "SET_SESSION_ID":
-      return { ...state, sessionId: action.sessionId };
+    case "SET_CONVERSATION_SESSION":
+      return {
+        ...state,
+        conversations: state.conversations.map((c) =>
+          c.id === action.id ? { ...c, sessionId: action.sessionId } : c
+        ),
+      };
+    case "LOAD_HISTORY": {
+      // 历史会话载入：同一后端会话只保留一个本地对话，存在则直接切换
+      const existing = state.conversations.find(
+        (c) => c.sessionId === action.conversation.sessionId
+      );
+      if (existing) {
+        return { ...state, activeConversationId: existing.id };
+      }
+      return {
+        ...state,
+        conversations: [...state.conversations, action.conversation],
+        activeConversationId: action.conversation.id,
+      };
+    }
     case "SET_AGENTS":
       return { ...state, agents: action.agents };
     case "SET_LOADING_AGENTS":
@@ -241,11 +308,11 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 }
 
 // ===== Context =====
-const ChatStateContext = createContext<ChatState>(initialState);
+const ChatStateContext = createContext<ChatState>(initState());
 const ChatDispatchContext = createContext<Dispatch<ChatAction>>(() => {});
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(chatReducer, initialState);
+  const [state, dispatch] = useReducer(chatReducer, undefined, initState);
 
   // 应用初始化时拉取智能体列表
   useEffect(() => {
@@ -266,7 +333,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "SET_LOADING_AGENTS", loading: false });
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 会话持久化：对话列表（含后端 sessionId）与消息写入 localStorage，
+  // 重启后 chat_stream 带旧 sessionId → 后端复用/重建会话并冷启动恢复 DB 历史
+  useEffect(() => {
+    const persisted: PersistedChat = {
+      conversations: sanitizeForStorage(state.conversations),
+      activeConversationId: state.activeConversationId,
+      selectedAgentId: state.selectedAgentId,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+    } catch (err) {
+      console.warn("会话持久化失败", err);
+    }
+  }, [state.conversations, state.activeConversationId, state.selectedAgentId]);
 
   return (
     <ChatStateContext.Provider value={state}>
@@ -291,8 +374,9 @@ export function useChatActions() {
   const dispatch = useChatDispatch();
 
   const sendMessage = useCallback(async (content: string, terminalSessionId?: string) => {
-    // 1. 如果没有 session，先创建
-    let sessionId = state.sessionId;
+    // 1. 会话绑定到对话：每个对话一个后端会话（新对话首次发送时创建）
+    const activeConv = state.conversations.find((c) => c.id === state.activeConversationId);
+    let sessionId = activeConv?.sessionId;
     if (!sessionId) {
       dispatch({ type: "SET_SENDING", sending: true });
       try {
@@ -302,7 +386,9 @@ export function useChatActions() {
         });
         if (res.code === "0000" && res.data) {
           sessionId = res.data.sessionId;
-          dispatch({ type: "SET_SESSION_ID", sessionId });
+          if (activeConv) {
+            dispatch({ type: "SET_CONVERSATION_SESSION", id: activeConv.id, sessionId });
+          }
         } else {
           console.error("创建会话失败", res);
           dispatch({ type: "SET_SENDING", sending: false });
@@ -375,16 +461,10 @@ export function useChatActions() {
                   });
                 }
                 // 解析工具调用步骤
-                // [DEBUG] 工具步骤
                 if (data.s) {
                   const steps = Array.isArray(data.s) ? data.s : [data.s];
                   for (const step of steps) {
                     if (step.t === "tool_call" || step.t === "tool_result") {
-                      // [DEBUG] 步骤丢失追踪
-                  if (step.a && typeof step.a === "object" && Object.keys(step.a).length === 0) {
-                    console.warn("[Chat] EMPTY a! raw jsonStr:", jsonStr);
-                  }
-                  console.log("[Chat] APPEND_STEP RAW step:", JSON.stringify(step));
                       dispatch({
                         type: "APPEND_STEP",
                         messageId: assistantId,
@@ -408,7 +488,7 @@ export function useChatActions() {
     } finally {
       dispatch({ type: "SET_SENDING", sending: false });
     }
-  }, [state.sessionId, state.selectedAgentId, dispatch]);
+  }, [state.conversations, state.activeConversationId, state.selectedAgentId, dispatch]);
 
   return { sendMessage };
 }

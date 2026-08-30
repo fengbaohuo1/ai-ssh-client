@@ -67,6 +67,8 @@ export interface Conversation {
   title: string;
   messages: ChatMessage[];
   createdAt: number;
+  /** 后端会话 ID——同一对话绑定同一后端会话；持久化后重启可接续（后端冷启动恢复） */
+  sessionId?: string;
 }
 
 export interface AgentOption {
