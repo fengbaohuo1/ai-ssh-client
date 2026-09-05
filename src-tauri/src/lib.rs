@@ -41,10 +41,20 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet])
         .setup(|app| {
-            // dev 端口联动：Vite 首选 1420，被占用时自动换端口并写入 .dev-port.json；
-            // 实际端口与 devUrl(1420) 不一致时，把主窗口导航到真实地址，避免白屏
-            if let Some(port) = actual_dev_port() {
-                if port != DEV_URL_PORT {
+            // dev 端口联动：Vite 首选 1420，被占用时自动换端口并写入 .dev-port.json。
+            //
+            // 时序说明（为什么必须轮询文件而不是读一次）：
+            // Tauri CLI 会先探测 devUrl(1420) 可达才启动桌面壳；1420 被别的服务占用时
+            // CLI 探测秒过即放行，而本项目 Vite 仍需 ~300ms 启动、且 listen 完成后才写
+            // 端口文件——桌面壳可能早于文件出现。因此轮询等待文件（最多 10 秒），
+            // 文件出现后再做端口就绪探测与窗口导航。
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                if let Some(port) = actual_dev_port() {
+                    if port == DEV_URL_PORT {
+                        // 首选端口可用：devUrl 即正确地址，无需导航
+                        break;
+                    }
                     println!("[dev-port] dev server 实际端口 {port}，等待就绪后导航窗口…");
                     if wait_until_listening(port) {
                         let url = Url::parse(&format!("http://localhost:{port}")).expect("dev url 解析失败");
@@ -53,7 +63,13 @@ pub fn run() {
                             println!("[dev-port] 已导航到 http://localhost:{port}");
                         }
                     }
+                    break;
                 }
+                if Instant::now() >= deadline {
+                    // 超时仍未出现文件（例如 Vite 启动失败），保持 devUrl 原行为
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(200));
             }
             Ok(())
         })
