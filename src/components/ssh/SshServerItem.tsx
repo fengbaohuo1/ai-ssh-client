@@ -1,10 +1,25 @@
 import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
+import { statusLabel } from "../../types";
 import { useSshState, useSshDispatch, useSshActions } from "../../contexts/SshContext";
 import { useTerminalState, useTerminalDispatch } from "../../contexts/TerminalContext";
 
 interface Props {
   server: SshServer;
+}
+
+/** 连接状态指示灯样式：已连接=亮绿、连接中=琥珀脉冲、失败=红、未连接=熄灭 */
+function statusDotClass(status: number): string {
+  switch (status) {
+    case 1:
+      return "bg-[var(--status-success)] shadow-[0_0_4px_var(--status-success)]";
+    case 2:
+      return "bg-[var(--status-warning)] animate-pulse";
+    case 3:
+      return "bg-[var(--status-error)]";
+    default:
+      return "bg-[var(--text-tertiary)] opacity-40";
+  }
 }
 
 export default function SshServerItem({ server }: Props) {
@@ -37,6 +52,11 @@ export default function SshServerItem({ server }: Props) {
 
   const handleDoubleClick = useCallback(async () => {
     activateServerTab();
+    // 已连接：双击只负责"激活标签 + 绑定 AI"，不再重复调 connect 接口
+    if (isConnected) {
+      if (!isActive) setActiveConnection(server.id);
+      return;
+    }
     try {
       const res = await connectServer(server.id);
       if (res?.code === "0000") {
@@ -49,7 +69,7 @@ export default function SshServerItem({ server }: Props) {
     } catch (err) {
       console.error("连接失败", err);
     }
-  }, [server.id, server.name, connectServer, terminalDispatch, activateServerTab]);
+  }, [server.id, server.name, isConnected, isActive, connectServer, terminalDispatch, activateServerTab, setActiveConnection]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -149,38 +169,11 @@ export default function SshServerItem({ server }: Props) {
           </div>
         )}
 
-        {/* Toggle switch */}
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            if (isConnected) {
-              await disconnectServer(server.id);
-              for (const tab of tabs) {
-                if (tab.serverId === server.id) {
-                  terminalDispatch({ type: "CLOSE_TAB", id: tab.id });
-                }
-              }
-            } else {
-              activateServerTab();
-              const res = await connectServer(server.id);
-              if (res?.code === "0000") {
-                terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
-              }
-            }
-          }}
-          className={`relative w-7 h-4 rounded-full transition-colors duration-200 flex-shrink-0 ${
-            isConnected
-              ? "bg-[var(--status-success)]"
-              : "bg-[var(--text-tertiary)]"
-          }`}
-          title={isConnected ? "点击断开" : "点击连接"}
-        >
-          <div
-            className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 shadow-sm ${
-              isConnected ? "translate-x-3" : "translate-x-0"
-            }`}
-          />
-        </button>
+        {/* 状态指示灯（连接交互改为双击/右键菜单，不再提供开关） */}
+        <span
+          className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDotClass(server.status)}`}
+          title={statusLabel(server.status)}
+        />
       </div>
 
       {/* Context menu */}
