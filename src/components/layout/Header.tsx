@@ -38,7 +38,7 @@ export default function Header() {
           </span>
         ) : (
           <span className="text-[11px] text-[var(--text-tertiary)]">
-            点击左侧服务器以绑定 AI 助手
+            在右侧 AI 面板顶部选择目标服务器
           </span>
         )}
       </div>

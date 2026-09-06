@@ -23,16 +23,6 @@ export function authTypeToMethod(type: number): "password" | "key" {
   return type === 2 ? "key" : "password";
 }
 
-export function statusLabel(status: number): string {
-  switch (status) {
-    case 0: return "未连接";
-    case 1: return "已连接";
-    case 2: return "连接中";
-    case 3: return "连接失败";
-    default: return "未知";
-  }
-}
-
 // ===== 终端标签 =====
 export interface TerminalTab {
   id: string;

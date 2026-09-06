@@ -1,37 +1,35 @@
 import { useState, useCallback } from "react";
 import type { SshServer } from "../../types";
-import { statusLabel } from "../../types";
+import { serverSessionState } from "./sessionStatus";
 import { useSshState, useSshDispatch, useSshActions } from "../../contexts/SshContext";
 import { useTerminalState, useTerminalDispatch } from "../../contexts/TerminalContext";
+import { useServerSession } from "../../hooks/useServerSession";
 
 interface Props {
   server: SshServer;
 }
 
-/** 连接状态指示灯样式：已连接=亮绿、连接中=琥珀脉冲、失败=红、未连接=熄灭 */
-function statusDotClass(status: number): string {
-  switch (status) {
-    case 1:
-      return "bg-[var(--status-success)] shadow-[0_0_4px_var(--status-success)]";
-    case 2:
-      return "bg-[var(--status-warning)] animate-pulse";
-    case 3:
-      return "bg-[var(--status-error)]";
-    default:
-      return "bg-[var(--text-tertiary)] opacity-40";
-  }
-}
-
+/**
+ * 服务器列表项。
+ * <p>交互语义（V2 收敛）：
+ * - 单击：仅聚焦该服务器的终端标签（若已打开）
+ * - 双击 / 右键「连接」：确保前端会话（打开/重建终端标签并连 WS）
+ * - 行尾指示灯 = 前端页面终端会话状态（WS 为准），非后端连接池状态
+ * - AI 目标服务器绑定不再由列表行触发——统一在右侧 AI 面板顶部的选择器里选
+ */
 export default function SshServerItem({ server }: Props) {
   const { activeConnectionId } = useSshState();
   const { tabs } = useTerminalState();
   const sshDispatch = useSshDispatch();
   const terminalDispatch = useTerminalDispatch();
-  const { connectServer, disconnectServer, removeServer, setActiveConnection } = useSshActions();
+  const { disconnectServer, removeServer, setActiveConnection } = useSshActions();
+  const { connectAndOpen } = useServerSession();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const isConnected = server.status === 1;
+  // 连接状态：以当前页面终端会话（TerminalTab / WS）为准
+  const session = serverSessionState(tabs.find((t) => t.serverId === server.id));
+  const isConnected = session.connected;
   const isActive = activeConnectionId === server.id;
 
   /** 查找该服务器对应的终端标签并激活 */
@@ -42,34 +40,10 @@ export default function SshServerItem({ server }: Props) {
     }
   }, [tabs, server.id, terminalDispatch]);
 
-  const handleRowClick = () => {
-    // 单击：切换到该服务器的终端标签，同时绑定 AI 到该服务器
-    activateServerTab();
-    if (isConnected) {
-      setActiveConnection(isActive ? null : server.id);
-    }
-  };
-
+  /** 双击：确保前端会话（已连接仅聚焦，不再兼任 AI 绑定） */
   const handleDoubleClick = useCallback(async () => {
-    activateServerTab();
-    // 已连接：双击只负责"激活标签 + 绑定 AI"，不再重复调 connect 接口
-    if (isConnected) {
-      if (!isActive) setActiveConnection(server.id);
-      return;
-    }
-    try {
-      const res = await connectServer(server.id);
-      if (res?.code === "0000") {
-        terminalDispatch({
-          type: "OPEN_SERVER_TAB",
-          serverId: server.id,
-          serverName: server.name,
-        });
-      }
-    } catch (err) {
-      console.error("连接失败", err);
-    }
-  }, [server.id, server.name, isConnected, isActive, connectServer, terminalDispatch, activateServerTab, setActiveConnection]);
+    await connectAndOpen(server);
+  }, [server, connectAndOpen]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,17 +56,9 @@ export default function SshServerItem({ server }: Props) {
   }, []);
 
   const handleConnect = useCallback(async () => {
-    activateServerTab();
-    try {
-      const res = await connectServer(server.id);
-      if (res?.code === "0000") {
-        terminalDispatch({ type: "OPEN_SERVER_TAB", serverId: server.id, serverName: server.name });
-      }
-    } catch (err) {
-      console.error("连接失败", err);
-    }
+    await connectAndOpen(server);
     closeMenu();
-  }, [server.id, connectServer, terminalDispatch, closeMenu, activateServerTab]);
+  }, [server, connectAndOpen, closeMenu]);
 
   const handleDisconnect = async () => {
     await disconnectServer(server.id);
@@ -102,6 +68,7 @@ export default function SshServerItem({ server }: Props) {
         terminalDispatch({ type: "CLOSE_TAB", id: tab.id });
       }
     }
+    // 若该服务器正被 AI 绑定，解除绑定
     if (isActive) setActiveConnection(null);
     closeMenu();
   };
@@ -123,6 +90,7 @@ export default function SshServerItem({ server }: Props) {
           terminalDispatch({ type: "CLOSE_TAB", id: tab.id });
         }
       }
+      if (isActive) setActiveConnection(null);
       await removeServer(server.id);
       closeMenu();
     } else {
@@ -142,7 +110,7 @@ export default function SshServerItem({ server }: Props) {
                     border-b border-[var(--border-subtle)] last:border-b-0
                     hover:bg-[var(--surface-hover)]
                     ${isActive ? "bg-[var(--surface-active)] ring-1 ring-inset ring-[var(--accent-bg)]" : ""}`}
-        onClick={handleRowClick}
+        onClick={activateServerTab}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
@@ -169,10 +137,10 @@ export default function SshServerItem({ server }: Props) {
           </div>
         )}
 
-        {/* 状态指示灯（连接交互改为双击/右键菜单，不再提供开关） */}
+        {/* 状态指示灯（前端终端会话为准） */}
         <span
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDotClass(server.status)}`}
-          title={statusLabel(server.status)}
+          className={`w-2 h-2 rounded-full flex-shrink-0 ${session.dotClass}`}
+          title={session.label}
         />
       </div>
 

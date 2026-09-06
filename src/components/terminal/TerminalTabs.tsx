@@ -1,5 +1,5 @@
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
-import { useSshActions } from "../../contexts/SshContext";
+import { useSshState, useSshActions } from "../../contexts/SshContext";
 import type { TerminalTab } from "../../types";
 
 interface Props {
@@ -9,7 +9,8 @@ interface Props {
 
 export default function TerminalTabs({ tabs, activeTabId }: Props) {
   const dispatch = useTerminalDispatch();
-  const { disconnectServer } = useSshActions();
+  const { activeConnectionId } = useSshState();
+  const { disconnectServer, setActiveConnection } = useSshActions();
 
   if (tabs.length === 0) return null;
 
@@ -66,8 +67,11 @@ export default function TerminalTabs({ tabs, activeTabId }: Props) {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (tab.serverId) {
-                    // SSH 标签关闭时自动断开连接
+                    // SSH 标签关闭时自动断开连接；若该服务器正被 AI 绑定则解除
                     disconnectServer(tab.serverId);
+                    if (activeConnectionId === tab.serverId) {
+                      setActiveConnection(null);
+                    }
                   }
                   dispatch({ type: "CLOSE_TAB", id: tab.id });
                 }}

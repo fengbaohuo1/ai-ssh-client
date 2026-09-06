@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useChatState, useChatDispatch } from "../../contexts/ChatContext";
 import AiChatMessages from "./AiChatMessages";
 import AiChatInput from "./AiChatInput";
+import TargetServerSelect from "./TargetServerSelect";
 
 export default function AiChatPanel() {
   const { conversations, activeConversationId } = useChatState();
@@ -24,6 +25,9 @@ export default function AiChatPanel() {
 
   return (
     <div className="flex flex-col h-full bg-[var(--surface-panel)] border-l border-[var(--border-default)]">
+      {/* ===== 目标服务器选择器（对话/输入区之外；AI 绑定入口，单选） ===== */}
+      <TargetServerSelect />
+
       {/* ===== Header ===== */}
       <div className="flex items-center justify-between px-3 h-[42px] border-b border-[var(--border-default)] shrink-0 gap-1">
         {/* Title + history toggle */}
