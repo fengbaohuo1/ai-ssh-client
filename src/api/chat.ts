@@ -1,10 +1,69 @@
 import { apiGet, apiPost } from "./client";
 
-/** 智能体配置 */
+/** 模型配置信息（配置文件 chat-model，不含 apiKey） */
+export interface ChatModelInfo {
+  /** 模型名（chat-model.model） */
+  modelName?: string;
+  /** 服务地址（chat-model.base-url） */
+  baseUrl?: string;
+  /** 模型上下文窗口 tokens（chat-model.context-size） */
+  contextSize?: number;
+  /** 推理强度（chat-model.reasoning-effort，未配置为空） */
+  reasoningEffort?: string;
+}
+
+export interface AgentWorkflowInfo {
+  type?: string;
+  name?: string;
+  description?: string;
+}
+
+export interface McpToolInfo {
+  name?: string;
+  /** remote / stdio / local */
+  kind?: string;
+  /** remote=url；stdio=启动命令；local 无 */
+  target?: string;
+}
+
+export interface SkillInfo {
+  /** directory / resource */
+  type?: string;
+  path?: string;
+}
+
+/** 智能体配置（后端 query_ai_agent_config_list：配置文件真实信息回传，apiKey 不下发） */
 export interface AgentConfig {
   agentId: string;
   agentName: string;
   agentDesc: string;
+  /** 配置文件 app-name */
+  appName?: string;
+  chatModel?: ChatModelInfo;
+  /** 子智能体名 */
+  subAgents?: string[];
+  agentWorkflows?: AgentWorkflowInfo[];
+  mcpTools?: McpToolInfo[];
+  skills?: SkillInfo[];
+  /** runner.plugin-name-list */
+  plugins?: string[];
+}
+
+/** 上下文窗口格式化：128000 → "128K"；非整千 → 千分位 */
+export function formatContextSize(tokens?: number | null): string {
+  if (!tokens || tokens <= 0) return "-";
+  if (tokens % 1000 === 0) return `${tokens / 1000}K`;
+  return tokens.toLocaleString();
+}
+
+/** baseUrl 取 host 展示（https://api.deepseek.com → api.deepseek.com） */
+export function baseUrlHost(url?: string | null): string {
+  if (!url) return "-";
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
 /** 创建会话请求 */

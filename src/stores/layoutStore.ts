@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
-export type SidebarView = "ssh" | "history" | "files" | "sftp" | "mcp" | "skills" | "plugins";
+// 左侧栏视图：ssh=服务器、history=会话历史、config=AI 配置（配置文件真实信息，只读）
+export type SidebarView = "ssh" | "history" | "config";
 
 interface LayoutState {
   leftSidebarVisible: boolean;
