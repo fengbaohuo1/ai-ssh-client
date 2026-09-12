@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useChatState, useChatDispatch } from "../../contexts/ChatContext";
 import { listAgents, baseUrlHost, formatContextSize } from "../../api/chat";
-import type { AgentConfig, McpToolInfo, SkillInfo } from "../../api/chat";
+import type { AgentConfig, McpToolInfo, ProviderCapabilitiesInfo, SkillInfo } from "../../api/chat";
 
 interface Props {
   onClose: () => void;
@@ -122,6 +122,16 @@ function AgentDetail({ agent }: { agent: AgentConfig }) {
     <div className="px-3 pt-1.5 space-y-3">
       {/* 模型 */}
       <Section title="模型配置">
+        <KV
+          k="模型通道"
+          v={model?.providerName || model?.provider || "-"}
+          sub={model?.provider ? `provider: ${model.provider}` : undefined}
+        />
+        <KV
+          k="通道能力"
+          v={capabilityText(model?.capabilities)}
+          sub={model?.capabilities?.note}
+        />
         <KV k="模型" v={model?.modelName || "-"} />
         <KV k="服务地址" v={model?.baseUrl || "-"} sub={model?.baseUrl ? baseUrlHost(model.baseUrl) : undefined} />
         <KV k="上下文窗口" v={model?.contextSize ? `${formatContextSize(model.contextSize)} tokens` : "-"} />
@@ -208,6 +218,17 @@ function AgentDetail({ agent }: { agent: AgentConfig }) {
       </Section>
     </div>
   );
+}
+
+/**
+ * 通道能力摘要（只读）：把"这条通道少了什么能力"摆在明面上——
+ * 缺能力时后端是静默降级（拿不到草稿/拿不到缓存命中），不写出来就只能靠猜。
+ */
+function capabilityText(cap?: ProviderCapabilitiesInfo): string {
+  if (!cap) return "未知通道（装配期将报错）";
+  const mark = (supported?: boolean) => (supported ? "✔" : "✘");
+  const cache = cap.cacheMetricsGeneric ? "通用字段" : "原生 usage";
+  return `草稿流式 ${mark(cap.reasoningDraftStreaming)} · 回放 ${mark(cap.reasoningDraftReplay)} · 缓存 ${cache} · 思考开关 ${mark(cap.thinkingToggle)}`;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

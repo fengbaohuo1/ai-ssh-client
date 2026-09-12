@@ -1,7 +1,29 @@
 import { apiGet, apiPost } from "./client";
 
+/** 通道能力声明（后端 ProviderCapabilities 一一对应：这条通道能做什么） */
+export interface ProviderCapabilitiesInfo {
+  /** 流式响应能否拿到思考草稿 */
+  reasoningDraftStreaming?: boolean;
+  /** 请求侧能否把思考草稿回写给服务端 */
+  reasoningDraftReplay?: boolean;
+  /** 通用 usage 字段是否带缓存命中 */
+  cacheMetricsGeneric?: boolean;
+  /** 能否显式开关思考 */
+  thinkingToggle?: boolean;
+  /** 该通道接受的推理强度取值 */
+  reasoningEffortValues?: string[];
+  /** 一句人话说明 */
+  note?: string;
+}
+
 /** 模型配置信息（配置文件 chat-model，不含 apiKey） */
 export interface ChatModelInfo {
+  /** 模型通道 id（chat-model.provider，空配置回填默认通道） */
+  provider?: string;
+  /** 模型通道展示名 */
+  providerName?: string;
+  /** 通道能力声明 */
+  capabilities?: ProviderCapabilitiesInfo;
   /** 模型名（chat-model.model） */
   modelName?: string;
   /** 服务地址（chat-model.base-url） */
