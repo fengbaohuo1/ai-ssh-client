@@ -128,10 +128,36 @@ function AgentDetail({ agent }: { agent: AgentConfig }) {
         <KV k="推理强度" v={model?.reasoningEffort || "未配置（模型默认）"} />
       </Section>
 
-      {/* 子智能体与工作流 */}
-      {agent.subAgents && agent.subAgents.length > 0 && (
-        <Section title="子智能体">
-          <Chips items={agent.subAgents} />
+      {/* 角色与派发关系（配置驱动父子协作：编排者只拆解派发、执行者才持有 executeCommand） */}
+      {agent.agentRoles && agent.agentRoles.length > 0 && (
+        <Section title="角色与派发关系">
+          {agent.agentRoles.map((role, i) => (
+            <div key={i} className="text-xs space-y-0.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-mono text-[var(--text-primary)]">{role.name}</span>
+                {role.orchestrator ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-input)] text-[var(--text-secondary)]">
+                    编排
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-input)] text-[var(--text-secondary)]">
+                    执行
+                  </span>
+                )}
+                {role.outputKey ? (
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-mono">→ {role.outputKey}</span>
+                ) : null}
+              </div>
+              {role.description ? (
+                <div className="text-[10px] text-[var(--text-tertiary)] leading-relaxed">{role.description}</div>
+              ) : null}
+              {role.delegates && role.delegates.length > 0 ? (
+                <div className="text-[10px] text-[var(--text-secondary)] font-mono">
+                  可派发：{role.delegates.join(" / ")}
+                </div>
+              ) : null}
+            </div>
+          ))}
         </Section>
       )}
       {agent.agentWorkflows && agent.agentWorkflows.length > 0 && (

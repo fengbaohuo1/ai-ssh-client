@@ -32,6 +32,18 @@ export interface SkillInfo {
   path?: string;
 }
 
+/** 智能体角色与派发关系（配置驱动父子协作） */
+export interface AgentRoleInfo {
+  name?: string;
+  description?: string;
+  /** 会话输出键（output-key） */
+  outputKey?: string;
+  /** 可派发的子智能体名（sub-agents 声明） */
+  delegates?: string[];
+  /** 是否为编排者（有子智能体的智能体不再持有 executeCommand） */
+  orchestrator?: boolean;
+}
+
 /** 智能体配置（后端 query_ai_agent_config_list：配置文件真实信息回传，apiKey 不下发） */
 export interface AgentConfig {
   agentId: string;
@@ -42,6 +54,8 @@ export interface AgentConfig {
   chatModel?: ChatModelInfo;
   /** 子智能体名 */
   subAgents?: string[];
+  /** 角色与派发关系（谁可派给谁） */
+  agentRoles?: AgentRoleInfo[];
   agentWorkflows?: AgentWorkflowInfo[];
   mcpTools?: McpToolInfo[];
   skills?: SkillInfo[];
