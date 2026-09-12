@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPost, BASE_URL } from "./client";
 
 /** 通道能力声明（后端 ProviderCapabilities 一一对应：这条通道能做什么） */
 export interface ProviderCapabilitiesInfo {
@@ -119,6 +119,8 @@ export interface ChatRequest {
   userId: string;
   sessionId: string;
   message: string;
+  /** AI 要操作的 SSH 连接（connectionId）；不传 = 纯对话 */
+  terminalSessionId?: string;
 }
 
 /** 对话响应（非流式）——后端返回多段文本拼接数组 */
@@ -174,9 +176,7 @@ export async function chat(data: ChatRequest) {
   return apiPost<ChatResponse>("/api/v1/chat", data);
 }
 
-/** 流式对话 — 返回 SSE URL，前端用 EventSource 消费 */
+/** 流式对话 — 返回 SSE URL（POST + ReadableStream 消费，EventSource 不支持 POST） */
 export function chatStreamUrl(): string {
-  // 开发模式走 Vite proxy，生产环境直连
-  const base = import.meta.env.DEV ? "" : "http://localhost:8091";
-  return `${base}/api/v1/chat_stream`;
+  return `${BASE_URL}/api/v1/chat_stream`;
 }

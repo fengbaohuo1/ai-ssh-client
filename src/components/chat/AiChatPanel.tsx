@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useChatState, useChatDispatch } from "../../contexts/ChatContext";
+import { useChatState, useChatDispatch, useChatActions } from "../../contexts/ChatContext";
+import { useSshState } from "../../contexts/SshContext";
 import AiChatMessages from "./AiChatMessages";
 import AiChatInput from "./AiChatInput";
 import TargetServerSelect from "./TargetServerSelect";
@@ -7,6 +8,8 @@ import TargetServerSelect from "./TargetServerSelect";
 export default function AiChatPanel() {
   const { conversations, activeConversationId } = useChatState();
   const dispatch = useChatDispatch();
+  const { regenerate } = useChatActions();
+  const { activeConnectionId } = useSshState();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -92,15 +95,15 @@ export default function AiChatPanel() {
             </svg>
           </button>
 
-          {/* Regenerate */}
+          {/* Regenerate：丢掉最后一条回答并重发上一条用户消息 */}
           <button
-            onClick={() => dispatch({ type: "REGENERATE" })}
-            disabled={!messages.some((m) => m.role === "assistant")}
+            onClick={() => regenerate(activeConnectionId ?? undefined)}
+            disabled={isStreaming || !messages.some((m) => m.role === "assistant")}
             className="flex items-center justify-center w-7 h-7 rounded-md
                        text-[var(--text-secondary)] hover:text-[var(--text-primary)]
                        hover:bg-[var(--surface-hover)] transition-colors
                        disabled:opacity-30 disabled:cursor-not-allowed"
-            title="重新生成"
+            title="重新生成（重发上一条消息）"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23,4 23,10 17,10" />

@@ -1,4 +1,9 @@
-const BASE_URL = import.meta.env.DEV ? "" : "http://localhost:8091";
+/**
+ * 后端基址：开发走 Vite proxy（同源），生产直连本机服务。
+ * 需要指向别的地址时用 `VITE_API_BASE` 覆盖（打包/启动时注入），避免地址散落多处。
+ */
+export const BASE_URL =
+  import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "" : "http://localhost:8091");
 
 export interface ApiResponse<T> {
   code: string;

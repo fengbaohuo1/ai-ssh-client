@@ -1,29 +1,28 @@
 import { useState, useRef, useCallback } from "react";
-import { useChatDispatch, useChatActions, useChatState } from "../../contexts/ChatContext";
+import { useChatActions, useChatState } from "../../contexts/ChatContext";
 import { useSshState } from "../../contexts/SshContext";
 import { baseUrlHost, formatContextSize } from "../../api/chat";
 
 export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dispatch = useChatDispatch();
-  const { sendMessage } = useChatActions();
+  const { sendMessage, stopStreaming } = useChatActions();
   const { activeConnectionId } = useSshState();
   // 模型信息：来自后端配置（query_ai_agent_config_list → chatModel），只读展示
-  const { agents, selectedAgentId } = useChatState();
+  const { agents, selectedAgentId, sending } = useChatState();
   const agent = agents.find((a) => a.agentId === selectedAgentId);
   const modelName = agent?.chatModel?.modelName;
   const contextSize = agent?.chatModel?.contextSize;
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed || isStreaming || sending) return;
     sendMessage(trimmed, activeConnectionId ?? undefined);
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [input, isStreaming, sendMessage, activeConnectionId]);
+  }, [input, isStreaming, sending, sendMessage, activeConnectionId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -67,11 +66,11 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
           <div className="flex items-center justify-end mt-2 pt-2 border-t border-[var(--border-subtle)]">
             {isStreaming ? (
               <button
-                onClick={() => dispatch({ type: "STOP_STREAMING" })}
+                onClick={stopStreaming}
                 className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0
                            bg-[var(--status-error)] hover:bg-red-600 text-white
                            transition-all duration-150 active:scale-95"
-                title="停止生成"
+                title="停止生成（中断本次请求）"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                   <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -80,12 +79,12 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
             ) : (
               <button
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || sending}
                 className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0
                            bg-[var(--accent-bg)] hover:bg-[var(--accent-hover)] text-white
                            disabled:opacity-30 disabled:cursor-not-allowed
                            transition-all duration-150 active:scale-95"
-                title="发送"
+                title={sending ? "正在创建会话…" : "发送"}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" />

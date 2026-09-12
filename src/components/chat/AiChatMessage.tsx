@@ -1,68 +1,8 @@
-import { useState, useMemo } from "react";
-import type { ChatMessage, StepEvent } from "../../types";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import type { Components } from "react-markdown";
-
-/**
- * 规整换行——密度区分 artifact 和段落：
- *   每 10 个有效字出现超过 1 个 \n\n → 全去掉（Spring AI artifact）
- *   否则 → 3+ \n 压缩为 \n\n（保留真实段落分隔）
- */
-function norm(s: string): string {
-  const breaks = (s.match(/\n\n/g) || []).length;
-  const len = s.replace(/\s/g, "").length || 1;
-  if (breaks > 0 && len / breaks < 10) {
-    return s.replace(/\n{2,}/g, "");
-  }
-  return s.replace(/\n{3,}/g, "\n\n");
-}
-
-/** 切割后的段落：文本段 或 合并的工具卡片 */
-type Segment =
-  | { type: "text"; content: string }
-  | { type: "tool"; call: StepEvent; result: StepEvent | null };
-
-/**
- * 将消息文本按步骤的 contentOffset 切割，步骤卡片穿插在对应段落之间。
- * tool_call + tool_result 合并为一张卡片。
- */
-function interleaveSteps(content: string, steps: StepEvent[]): Segment[] {
-  if (!steps || steps.length === 0) return [{ type: "text", content }];
-
-  // 配对：tool_call 与 tool_result 按 FIFO 队列配对。
-  // 后端可能连续发多个 tool_call（一次多命令）再连续发多个 tool_result，
-  // 不能只配对"紧邻下一个 step"（会导致前面的 call 配不到 result，显示沙漏）。
-  const results = steps.filter((s) => s.t === "tool_result");
-  let resultIdx = 0;
-  const merged: { call: StepEvent; result: StepEvent | null; offset: number }[] = [];
-  for (let i = 0; i < steps.length; i++) {
-    const s = steps[i];
-    if (s.t === "tool_call") {
-      const result = resultIdx < results.length ? results[resultIdx++] : null;
-      merged.push({ call: s, result, offset: s.contentOffset ?? 0 });
-    }
-  }
-  if (merged.length === 0) return [{ type: "text", content }];
-
-  const segments: Segment[] = [];
-  let cursor = 0;
-
-  for (const m of merged) {
-    const offset = Math.min(m.offset, content.length);
-    if (offset > cursor) {
-      segments.push({ type: "text", content: content.slice(cursor, offset) });
-    }
-    segments.push({ type: "tool", call: m.call, result: m.result });
-    cursor = Math.max(cursor, offset);
-  }
-
-  if (cursor < content.length) {
-    segments.push({ type: "text", content: content.slice(cursor) });
-  }
-
-  return segments;
-}
+import { useMemo } from "react";
+import type { ChatMessage } from "../../types";
+import { MarkdownText } from "./markdown";
+import StepTrace from "./steps/StepTrace";
+import { interleaveSteps } from "./steps/stepTree";
 
 interface Props {
   message: ChatMessage;
@@ -71,10 +11,10 @@ interface Props {
 export default function AiChatMessage({ message }: Props) {
   const isUser = message.role === "user";
 
-  // [DEBUG] 步骤渲染
-  if (!isUser && message.steps?.length) {
-    console.log("[ChatMsg] rendering steps:", message.steps.length, message.steps);
-  }
+  const segments = useMemo(
+    () => (isUser ? [] : interleaveSteps(message.content, message.steps || [])),
+    [isUser, message.content, message.steps]
+  );
 
   if (isUser) {
     return (
@@ -89,240 +29,75 @@ export default function AiChatMessage({ message }: Props) {
     );
   }
 
-  // AI 消息：按 contentOffset 切割文本，步骤穿插
-  const segments = useMemo(
-    () => interleaveSteps(message.content, message.steps || []),
-    [message.content, message.steps]
-  );
-
   return (
     <div className="flex justify-start">
       <div className="w-full min-w-0 text-xs leading-relaxed">
-        {segments.map((seg, i) => {
-          if (seg.type === "text") {
-            return (
-              <div key={`t-${i}`} className="prose-custom break-words">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={markdownComponents}
-                >
-                  {norm(seg.content)}
-                </ReactMarkdown>
-              </div>
-            );
-          }
-          return (
-            <div key={`tool-${i}`} className="my-1">
-              <MergedToolCard call={seg.call} result={seg.result} />
+        {segments.map((seg, i) =>
+          seg.type === "text" ? (
+            <div key={`t-${i}`} className="prose-custom break-words">
+              <MarkdownText>{seg.content}</MarkdownText>
             </div>
-          );
-        })}
+          ) : (
+            <StepTrace key={`trace-${i}`} steps={seg.steps} />
+          )
+        )}
+
+        {/* 空泡期/思考中：后端 thinking 事件之后的等待有明确反馈，而不是一片空白 */}
+        {message.thinking && !message.content ? (
+          <div className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)] py-1">
+            <span className="w-2.5 h-2.5 rounded-full border border-[var(--text-tertiary)] border-t-[var(--accent-bg)] animate-spin" />
+            正在分析…
+          </div>
+        ) : null}
 
         {/* Streaming cursor */}
-        {message.streaming && (
+        {message.streaming && message.content ? (
           <span className="inline-block w-1.5 h-3.5 bg-[var(--text-primary)] ml-0.5 animate-pulse align-middle rounded-sm" />
-        )}
+        ) : null}
 
-        {/* Status */}
-        {message.status === "sending" && (
-          <span className="text-[10px] text-[var(--status-info)] ml-2">发送中...</span>
-        )}
-        {message.status === "error" && (
-          <span className="text-[10px] text-[var(--status-error)] ml-2">发送失败</span>
-        )}
+        {/* 错误（后端 error 步骤 / 请求失败）：原因必须看得见 */}
+        {message.errorText ? (
+          <div className="mt-1.5 rounded-md border border-[var(--status-error)]/40 bg-[var(--status-error)]/5 px-2.5 py-1.5">
+            <div className="text-[10px] text-[var(--status-error)] mb-0.5">执行失败</div>
+            <div className="text-[11px] text-[var(--text-secondary)] break-words">{message.errorText}</div>
+          </div>
+        ) : null}
 
-        {/* Timestamp */}
-        <div className="text-[10px] text-[var(--text-tertiary)] mt-2">
-          {formatTime(message.timestamp)}
+        {/* 状态行：时间 + token/缓存 + 中断提示 */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <span className="text-[10px] text-[var(--text-tertiary)]">{formatTime(message.timestamp)}</span>
+
+          {message.status === "stopped" ? (
+            <span className="text-[10px] text-[var(--status-warning)]">已停止</span>
+          ) : null}
+          {message.stopReason && message.stopReason !== "completed" && message.status !== "stopped" ? (
+            <span className="text-[10px] text-[var(--status-warning)]">
+              本轮中断（{message.stopReason === "error" ? "执行错误" : message.stopReason}）
+            </span>
+          ) : null}
+
+          {message.usage && message.usage.totalTokens > 0 ? (
+            <span
+              className="text-[10px] text-[var(--text-tertiary)]"
+              title={`本回合累计：输入 ${message.usage.promptTokens} · 输出 ${message.usage.completionTokens} · 缓存命中 ${message.usage.cachedTokens}`}
+            >
+              ↑{formatTokens(message.usage.promptTokens)} ↓{formatTokens(message.usage.completionTokens)}
+              {message.usage.cachedTokens > 0 ? (
+                <span className="text-[var(--status-success)]"> · 缓存 {formatTokens(message.usage.cachedTokens)}</span>
+              ) : null}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-// ===== 合并的工具卡片 =====
-
-/**
- * 合并 tool_call + tool_result 为一张卡片：命令 + 结果，可折叠
- */
-function MergedToolCard({ call, result }: { call: StepEvent; result: StepEvent | null }) {
-  const [open, setOpen] = useState(false);
-  const command = jsonField(call.a, "command");
-  const resultOk = result ? jsonField(result.r, "success") : null;
-  const succeeded = resultOk !== "false" && resultOk !== null;
-
-  return (
-    <div
-      className="bg-[var(--surface-app)] rounded-md border border-[var(--border-subtle)] overflow-hidden cursor-pointer
-                  transition-colors duration-100 hover:border-[var(--border-default)]"
-      onClick={() => setOpen(!open)}
-    >
-      {/* 折叠栏 */}
-      <div className="flex items-center gap-1.5 px-2 py-1.5 select-none">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             strokeWidth="2.5" strokeLinecap="round"
-             className={`text-[var(--text-tertiary)] transition-transform duration-150 ${open ? "rotate-90" : ""}`}>
-          <polyline points="9,18 15,12 9,6" />
-        </svg>
-
-        <span className={`flex-shrink-0 text-[11px] ${result ? (succeeded ? "text-[var(--status-success)]" : "text-[var(--status-error)]") : "text-[var(--status-warning)]"}`}>
-          {result ? (succeeded ? "✓" : "✗") : "⏳"}
-        </span>
-
-        <span className="font-medium text-[11px] text-[var(--text-primary)]">
-          {call.n || "executeCommand"}
-        </span>
-
-        {!open && command && (
-          <span className="text-[10px] text-[var(--text-tertiary)] font-mono truncate ml-1">
-            {command}
-          </span>
-        )}
-      </div>
-
-      {/* 展开内容 */}
-      {open && (
-        <div className="border-t border-[var(--border-subtle)]" onClick={(e) => e.stopPropagation()}>
-          {command && (
-            <div className="px-3 py-1.5">
-              <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">命令</div>
-              <pre className="text-[11px] font-mono text-[var(--terminal-green)] bg-[var(--surface-input)] rounded px-2 py-1
-                             whitespace-pre-wrap break-all">{command}</pre>
-            </div>
-          )}
-          {result && (() => {
-            const output = jsonField(result.r, "output");
-            if (!output) return null;
-            return (
-              <div className="px-3 py-1.5">
-                <div className="text-[10px] text-[var(--text-tertiary)] mb-0.5">结果</div>
-                <pre className="text-[10px] font-mono text-[var(--text-secondary)] leading-relaxed
-                                max-h-[300px] overflow-y-auto whitespace-pre-wrap break-all">{output}</pre>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-    </div>
-  );
+/** 1200 → 1.2K（token 数太长的可读性问题） */
+function formatTokens(tokens: number): string {
+  if (tokens < 1000) return String(tokens);
+  return `${(tokens / 1000).toFixed(1)}K`;
 }
-
-/** 解析 JSON 字段 */
-function jsonField(json: string | object | undefined | null, key: string): string {
-  if (!json) return "";
-  try {
-    const obj = typeof json === "string" ? JSON.parse(json) : json;
-    if (typeof obj !== "object" || obj === null) return "";
-    const val = (obj as Record<string, unknown>)[key];
-    return val != null ? String(val) : "";
-  } catch { return ""; }
-}
-
-// ===== Custom Markdown Components =====
-
-const markdownComponents: Components = {
-  code({ className, children, ...props }) {
-    const isInline = !className;
-    if (isInline) {
-      return (
-        <code
-          className="bg-[var(--surface-app)] text-[var(--terminal-cyan)] px-1.5 py-0.5 rounded-md text-[11px]
-                     font-mono border border-[var(--border-subtle)]"
-          {...props}
-        >
-          {children}
-        </code>
-      );
-    }
-    return (
-      <pre
-        className="bg-[var(--surface-app)] rounded-lg px-3 py-2 my-1.5 overflow-x-auto text-[11px]
-                   border border-[var(--border-default)] font-mono"
-      >
-        <code className={className} {...props}>
-          {children}
-        </code>
-      </pre>
-    );
-  },
-
-  p({ children }) {
-    return <p className="my-1 last:mb-0">{children}</p>;
-  },
-
-  h1({ children }) {
-    return <h1 className="text-sm font-bold my-2 text-[var(--text-primary)]">{children}</h1>;
-  },
-  h2({ children }) {
-    return <h2 className="text-[13px] font-bold my-1.5 text-[var(--text-primary)]">{children}</h2>;
-  },
-  h3({ children }) {
-    return <h3 className="text-xs font-semibold my-1 text-[var(--text-primary)]">{children}</h3>;
-  },
-
-  ul({ children }) {
-    return <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>;
-  },
-  ol({ children }) {
-    return <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>;
-  },
-  li({ children }) {
-    return <li className="text-[var(--text-primary)]">{children}</li>;
-  },
-
-  a({ href, children }) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[var(--accent-bg)] underline hover:opacity-80"
-      >
-        {children}
-      </a>
-    );
-  },
-
-  table({ children }) {
-    return (
-      <div className="overflow-x-auto my-1.5">
-        <table className="min-w-full text-[11px] border-collapse border border-[var(--border-default)]">
-          {children}
-        </table>
-      </div>
-    );
-  },
-  thead({ children }) {
-    return <thead className="bg-[var(--surface-app)]">{children}</thead>;
-  },
-  th({ children }) {
-    return (
-      <th className="border border-[var(--border-default)] px-2 py-1 font-semibold text-left">
-        {children}
-      </th>
-    );
-  },
-  td({ children }) {
-    return <td className="border border-[var(--border-default)] px-2 py-1">{children}</td>;
-  },
-
-  blockquote({ children }) {
-    return (
-      <blockquote className="border-l-2 border-[var(--accent-bg)] pl-3 my-1.5 text-[var(--text-secondary)] italic">
-        {children}
-      </blockquote>
-    );
-  },
-
-  hr() {
-    return <hr className="my-2 border-[var(--border-subtle)]" />;
-  },
-
-  strong({ children }) {
-    return <strong className="font-semibold text-[var(--text-primary)]">{children}</strong>;
-  },
-};
-
 
 // ===== Time Formatting =====
 function formatTime(timestamp: number): string {
