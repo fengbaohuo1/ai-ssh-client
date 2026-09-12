@@ -59,8 +59,7 @@ function EmptyChat({ onPrompt, disabled, boundServerName }: {
 export default function AiChatMessages() {
   const { conversations, activeConversationId } = useChatState();
   const { sendMessage } = useChatActions();
-  const { activeConnectionId } = useSshState();
-  const { servers } = useSshState();
+  const { servers, activeConnectionId } = useSshState();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
