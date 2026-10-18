@@ -183,7 +183,7 @@ function AgentDetail({ agent }: { agent: AgentConfig }) {
         )}
       </Section>
 
-      {/* 角色与派发关系（配置驱动父子协作：编排者只拆解派发、执行者才持有 executeCommand） */}
+      {/* 角色与派发关系（配置驱动父子协作：派发模式可配置，hybrid 可直连执行，dispatch-only 仅派发） */}
       {agent.agentRoles && agent.agentRoles.length > 0 && (
         <Section title="角色与派发关系">
           {agent.agentRoles.map((role, i) => (
@@ -199,8 +199,23 @@ function AgentDetail({ agent }: { agent: AgentConfig }) {
                     执行
                   </span>
                 )}
+                {role.orchestrator && role.delegateMode ? (
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--surface-input)] text-[var(--text-secondary)]"
+                    title={
+                      role.delegateMode === "hybrid"
+                        ? "混合模式：可直接执行命令，也可派发子智能体"
+                        : "仅派发模式：父智能体不持有 executeCommand"
+                    }
+                  >
+                    {role.delegateMode === "hybrid" ? "可直连" : "仅派发"}
+                  </span>
+                ) : null}
                 {role.readOnly ? (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--status-success)]/15 text-[var(--status-success)]">
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--status-success)]/15 text-[var(--status-success)]"
+                    title="只读：不挂载写入文件工具，且 executeCommand 会拦截写操作"
+                  >
                     只读
                   </span>
                 ) : null}

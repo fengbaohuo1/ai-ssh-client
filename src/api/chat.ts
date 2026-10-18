@@ -78,9 +78,15 @@ export interface AgentRoleInfo {
   outputKey?: string;
   /** 可派发的子智能体名（sub-agents 声明） */
   delegates?: string[];
-  /** 是否为编排者（有子智能体的智能体不再持有 executeCommand） */
+  /** 是否为编排者（声明了子智能体，可派发） */
   orchestrator?: boolean;
-  /** 是否只读（不挂载 writeRemoteFile） */
+  /**
+   * 编排者的派发模式（没有子智能体时为 null）：
+   * - hybrid：混合，可直接执行命令（含 executeCommand），也可派发子智能体
+   * - dispatch-only：仅派发，只持有 dispatchSubAgent/dispatchSubAgents/planAndDispatchSubAgents
+   */
+  delegateMode?: "hybrid" | "dispatch-only" | null;
+  /** 是否只读（不挂载 writeRemoteFile，且 executeCommand 会做命令级写操作拦截） */
   readOnly?: boolean;
   /** 该角色实际可用的内置工具 */
   tools?: string[];

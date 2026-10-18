@@ -49,6 +49,7 @@ ai-ssh-client/
 - **API 基址**：`api/client.ts` 的 `BASE_URL`（`setApiBase/getApiBase`）是唯一出口，所有 REST / 上传 / 下载 / WS 运行期取它，禁止硬编码端口。
 - **打包**：`scripts/bundle-backend.ps1`（Maven + jlink，`ALL-MODULE-PATH`）产出 jar 与约 78 MB JRE；`npm run backend:bundle` / `npm run desktop:build`；`tauri.conf.json` 的 `beforeBuildCommand` 已串上 bundle。
 - **配置页**：设置 → 模型（`ModelSettings.tsx`，写后端 `llm.yml` 覆盖层，API Key 只写不回显）/ Agent 配置（`AgentConfigEditor.tsx`，直接编辑 `agent.yml`，后端校验 + `.bak` 备份）；接口封装在 `api/agentConfig.ts`。保存成功后后端立即热重装智能体，**无需重启**；返回 `applied=false` 时前端提示失败原因（旧装配继续服务）。
+- **智能体能力展示（v3.2 同步）**：`api/chat.ts` 的 `AgentRoleInfo` 增加 `delegateMode`（`hybrid` / `dispatch-only` / null）；`components/config/AgentConfigSidebar.tsx` 角色卡片据此显示「可直连 / 仅派发」徽标（hybrid=可直接执行命令+可派发，dispatch-only=父智能体不持有 executeCommand），只读徽标补充"executeCommand 会拦截写操作"的说明。后端工具语义变化（`AgentServiceController#toolsFor`）时必须同步这里。
 
 ## 关键设计决策
 
