@@ -1,13 +1,23 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type Dispatch, type ReactNode } from "react";
 import type { SshServer } from "../types";
 import { authTypeToMethod, authMethodToType } from "../types";
-import { createConnection, listConnections, deleteConnection as apiDeleteConnection, connect as apiConnect, disconnect as apiDisconnect } from "../api/ssh";
-import type { ConnectionResponse } from "../api/ssh";
+import {
+  createConnection,
+  updateConnection,
+  listConnections,
+  deleteConnection as apiDeleteConnection,
+  connect as apiConnect,
+  disconnect as apiDisconnect,
+  type ConnectionResponse,
+  type UpdateConnectionRequest,
+} from "../api/ssh";
+import { readAuth } from "../api/client";
+import { toast } from "../stores/toastStore";
 
 // ===== State & Actions =====
 interface SshState {
   servers: SshServer[];
-  activeConnectionId: string | null;  // ← 新增：当前 AI 绑定的服务器
+  activeConnectionId: string | null;  // ← 当前 AI 绑定的服务器
   filterText: string;
   editingServer: SshServer | null;
   isDialogOpen: boolean;
@@ -49,6 +59,11 @@ function mapResponseToServer(item: ConnectionResponse): SshServer {
     authMethod: authTypeToMethod(item.authType),
     status: item.status,
     userId: item.userId,
+    groupName: item.groupName,
+    tags: item.tags ?? [],
+    remark: item.remark,
+    favorite: Boolean(item.favorite),
+    lastConnectedAt: item.lastConnectedAt,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -69,17 +84,11 @@ function sshReducer(state: SshState, action: SshAction): SshState {
     case "SET_SERVERS":
       return { ...state, servers: action.servers };
     case "ADD_SERVER":
-      return {
-        ...state,
-        servers: [...state.servers, action.server],
-        isDialogOpen: false,
-      };
+      return { ...state, servers: [action.server, ...state.servers], isDialogOpen: false };
     case "UPDATE_SERVER":
       return {
         ...state,
-        servers: state.servers.map((s) =>
-          s.id === action.server.id ? action.server : s
-        ),
+        servers: state.servers.map((s) => (s.id === action.server.id ? action.server : s)),
         isDialogOpen: false,
         editingServer: null,
       };
@@ -87,6 +96,7 @@ function sshReducer(state: SshState, action: SshAction): SshState {
       return {
         ...state,
         servers: state.servers.filter((s) => s.id !== action.id),
+        activeConnectionId: state.activeConnectionId === action.id ? null : state.activeConnectionId,
       };
     case "SET_LOADING":
       return { ...state, loading: action.loading };
@@ -116,15 +126,16 @@ export function SshProvider({ children }: { children: ReactNode }) {
     (async () => {
       dispatch({ type: "SET_LOADING", loading: true });
       try {
-        const res = await listConnections("default");
+        const res = await listConnections(readAuth().userId);
         if (res.code === "0000" && res.data) {
-          const servers: SshServer[] = res.data.map(mapResponseToServer);
-          dispatch({ type: "SET_SERVERS", servers });
+          dispatch({ type: "SET_SERVERS", servers: res.data.map(mapResponseToServer) });
+          dispatch({ type: "SET_ERROR", error: null });
         } else {
-          dispatch({ type: "SET_ERROR", error: res.info || "获取服务器列表失败" });
+          const message = res.info || "获取服务器列表失败";
+          dispatch({ type: "SET_ERROR", error: message });
         }
       } catch (err) {
-        dispatch({ type: "SET_ERROR", error: String(err) });
+        dispatch({ type: "SET_ERROR", error: err instanceof Error ? err.message : String(err) });
       } finally {
         dispatch({ type: "SET_LOADING", loading: false });
       }
@@ -148,30 +159,51 @@ export function useSshDispatch() {
   return useContext(SshDispatchContext);
 }
 
+export interface ServerFormData {
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: "password" | "key";
+  password?: string;
+  privateKey?: string;
+  groupName?: string;
+  tags?: string[];
+  remark?: string;
+  favorite?: boolean;
+  connectTimeout?: number;
+  keepaliveInterval?: number;
+  startupCommand?: string;
+  compression?: number;
+  strictHostKeyCheck?: number;
+  knownHosts?: string;
+}
+
 export function useSshActions() {
   const dispatch = useSshDispatch();
 
-  const fetchServers = useCallback(async (userId: string = "default") => {
+  const fetchServers = useCallback(async (userId: string = readAuth().userId) => {
     dispatch({ type: "SET_LOADING", loading: true });
     try {
       const res = await listConnections(userId);
       if (res.code === "0000" && res.data) {
-        const servers: SshServer[] = res.data.map(mapResponseToServer);
-        dispatch({ type: "SET_SERVERS", servers });
+        dispatch({ type: "SET_SERVERS", servers: res.data.map(mapResponseToServer) });
+        dispatch({ type: "SET_ERROR", error: null });
       } else {
-        dispatch({ type: "SET_ERROR", error: res.info || "获取服务器列表失败" });
+        const message = res.info || "获取服务器列表失败";
+        dispatch({ type: "SET_ERROR", error: message });
+        toast.error("加载服务器失败", message);
       }
     } catch (err) {
-      dispatch({ type: "SET_ERROR", error: String(err) });
+      const message = err instanceof Error ? err.message : String(err);
+      dispatch({ type: "SET_ERROR", error: message });
+      toast.error("加载服务器失败", message);
     } finally {
       dispatch({ type: "SET_LOADING", loading: false });
     }
   }, [dispatch]);
 
-  const addServer = useCallback(async (data: {
-    name: string; host: string; port: number; username: string;
-    authMethod: "password" | "key"; password?: string;
-  }) => {
+  const addServer = useCallback(async (data: ServerFormData) => {
     try {
       const res = await createConnection({
         connectionName: data.name,
@@ -179,28 +211,91 @@ export function useSshActions() {
         port: data.port,
         username: data.username,
         authType: authMethodToType(data.authMethod),
-        password: data.password,
-        userId: "default",
+        password: data.authMethod === "password" ? data.password : undefined,
+        privateKey: data.authMethod === "key" ? data.privateKey : undefined,
+        groupName: data.groupName,
+        tags: data.tags,
+        remark: data.remark,
+        favorite: data.favorite,
+        connectTimeout: data.connectTimeout,
+        keepaliveInterval: data.keepaliveInterval,
+        startupCommand: data.startupCommand,
+        compression: data.compression,
+        strictHostKeyCheck: data.strictHostKeyCheck,
+        knownHosts: data.knownHosts,
+        userId: readAuth().userId,
       });
       if (res.code === "0000" && res.data) {
-        await fetchServers();
-        dispatch({ type: "CLOSE_DIALOG" });
+        dispatch({ type: "ADD_SERVER", server: mapResponseToServer(res.data) });
+        toast.success("服务器已添加", `${data.username}@${data.host}`);
       } else {
-        dispatch({ type: "SET_ERROR", error: res.info });
+        toast.error("添加服务器失败", res.info);
       }
     } catch (err) {
-      dispatch({ type: "SET_ERROR", error: String(err) });
+      toast.error("添加服务器失败", err instanceof Error ? err.message : String(err));
     }
-  }, [dispatch, fetchServers]);
+  }, [dispatch]);
+
+  const updateServer = useCallback(async (connectionId: string, data: ServerFormData) => {
+    try {
+      const patch: UpdateConnectionRequest = {
+        connectionName: data.name,
+        host: data.host,
+        port: data.port,
+        username: data.username,
+        authType: authMethodToType(data.authMethod),
+        groupName: data.groupName,
+        tags: data.tags,
+        remark: data.remark,
+        favorite: data.favorite,
+        connectTimeout: data.connectTimeout,
+        keepaliveInterval: data.keepaliveInterval,
+        startupCommand: data.startupCommand,
+        compression: data.compression,
+        strictHostKeyCheck: data.strictHostKeyCheck,
+        knownHosts: data.knownHosts,
+      };
+      // 凭证留空 = 保持原值
+      if (data.authMethod === "password" && data.password) patch.password = data.password;
+      if (data.authMethod === "key" && data.privateKey) patch.privateKey = data.privateKey;
+
+      const res = await updateConnection(connectionId, patch);
+      if (res.code === "0000" && res.data) {
+        dispatch({ type: "UPDATE_SERVER", server: mapResponseToServer(res.data) });
+        toast.success("服务器配置已更新", data.name);
+      } else {
+        toast.error("更新失败", res.info);
+      }
+    } catch (err) {
+      toast.error("更新失败", err instanceof Error ? err.message : String(err));
+    }
+  }, [dispatch]);
+
+  const toggleFavorite = useCallback(async (server: SshServer) => {
+    const next = !server.favorite;
+    try {
+      const res = await updateConnection(server.id, { favorite: next });
+      if (res.code === "0000" && res.data) {
+        dispatch({ type: "UPDATE_SERVER", server: mapResponseToServer(res.data) });
+      } else {
+        toast.error("收藏失败", res.info);
+      }
+    } catch (err) {
+      toast.error("收藏失败", err instanceof Error ? err.message : String(err));
+    }
+  }, [dispatch]);
 
   const removeServer = useCallback(async (connectionId: string) => {
     try {
       const res = await apiDeleteConnection(connectionId);
       if (res.code === "0000") {
         dispatch({ type: "DELETE_SERVER", id: connectionId });
+        toast.success("服务器已删除");
+      } else {
+        toast.error("删除失败", res.info);
       }
     } catch (err) {
-      dispatch({ type: "SET_ERROR", error: String(err) });
+      toast.error("删除失败", err instanceof Error ? err.message : String(err));
     }
   }, [dispatch]);
 
@@ -212,10 +307,12 @@ export function useSshActions() {
         dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 1 }); // connected
       } else {
         dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 3 }); // failed
+        toast.error("连接失败", res.info || "请检查主机、端口与认证信息");
       }
       return res;
-    } catch {
+    } catch (err) {
       dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 3 }); // failed
+      toast.error("连接失败", err instanceof Error ? err.message : String(err));
     }
   }, [dispatch]);
 
@@ -225,10 +322,10 @@ export function useSshActions() {
       if (res.code === "0000") {
         dispatch({ type: "SET_SERVER_STATUS", id: connectionId, status: 0 }); // disconnected
       } else {
-        dispatch({ type: "SET_ERROR", error: res.info });
+        toast.error("断开失败", res.info);
       }
     } catch (err) {
-      console.error("断开失败", err);
+      toast.error("断开失败", err instanceof Error ? err.message : String(err));
     }
   }, [dispatch]);
 
@@ -236,5 +333,14 @@ export function useSshActions() {
     dispatch({ type: "SET_ACTIVE_CONNECTION", connectionId });
   }, [dispatch]);
 
-  return { fetchServers, addServer, removeServer, connectServer, disconnectServer, setActiveConnection };
+  return {
+    fetchServers,
+    addServer,
+    updateServer,
+    toggleFavorite,
+    removeServer,
+    connectServer,
+    disconnectServer,
+    setActiveConnection,
+  };
 }

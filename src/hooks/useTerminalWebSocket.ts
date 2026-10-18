@@ -1,5 +1,17 @@
 import { useRef, useCallback, type RefObject } from "react";
 import type { Terminal } from "@xterm/xterm";
+import { getApiBase, readAuth } from "../api/client";
+
+/**
+ * WebSocket 基址：运行期读取（Tauri 侧后端端口是启动后才知道的）。
+ * 浏览器开发直连 8091（Vite 只代理 /api）；Tauri 用 API 基址同源升级。
+ */
+function wsBase(): string {
+  if (import.meta.env.VITE_WS_BASE) return import.meta.env.VITE_WS_BASE;
+  const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  if (import.meta.env.DEV && !inTauri) return "ws://localhost:8091";
+  return getApiBase().replace(/^http/, "ws");
+}
 
 export function useTerminalWebSocket(
   terminalRef: RefObject<Terminal | null>,
@@ -18,7 +30,9 @@ export function useTerminalWebSocket(
     }
 
     connectTimerRef.current = setTimeout(() => {
-      const url = `ws://localhost:8091/ws/terminal/${connectionId}`;
+      const token = readAuth().token;
+      const query = token ? `?access_token=${encodeURIComponent(token)}` : "";
+      const url = `${wsBase()}/ws/terminal/${connectionId}${query}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 

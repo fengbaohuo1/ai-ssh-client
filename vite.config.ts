@@ -67,7 +67,9 @@ export default defineConfig(async () => ({
     },
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 同时忽略编辑器/工具产生的临时 AGENTS 镜像目录：Windows 上这些临时文件
+      // 可能处于独占锁状态，chokidar 监听会抛 EBUSY 并直接压垮 dev server
+      ignored: ["**/src-tauri/**", "**/.AGENTS.md*", "**/.AGENTS.md*/**"],
     },
   },
 }));

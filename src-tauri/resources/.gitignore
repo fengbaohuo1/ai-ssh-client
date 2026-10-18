@@ -1,0 +1,8 @@
+# 桌面端打包产物（体积大，不进版本库；由 `npm run backend:bundle` 生成）
+backend/*.jar
+backend/*.zip
+jre/*
+!jre/.gitkeep
+
+# 保留目录占位
+!backend/.gitkeep

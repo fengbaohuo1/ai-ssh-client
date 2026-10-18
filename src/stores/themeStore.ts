@@ -4,10 +4,10 @@ import type { ITheme } from "@xterm/xterm";
 export interface TerminalTheme extends ITheme {}
 
 const DARK_TERMINAL_THEME: TerminalTheme = {
-  background: "#1b1c1f",
+  background: "#14161b",
   foreground: "#d4d4d8",
   cursor: "#ffffff",
-  cursorAccent: "#1b1c1f",
+  cursorAccent: "#14161b",
   selectionBackground: "#264f78",
   black: "#000000",
   red: "#cd3131",
@@ -55,21 +55,54 @@ interface ThemeState {
   currentTheme: "dark" | "light";
   terminalTheme: TerminalTheme;
   setTheme: (theme: "dark" | "light") => void;
+  initTheme: () => void;
+}
+
+const THEME_STORAGE_KEY = "ai-ssh-theme";
+
+function loadTheme(): "dark" | "light" {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    // ignore
+  }
+  return "dark";
+}
+
+function applyTheme(theme: "dark" | "light") {
+  document.documentElement.setAttribute("data-theme", theme);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // ignore
+  }
+  // 同步 Tauri 原生窗口标题栏主题（动态导入避免浏览器环境初始化异常）
+  import("@tauri-apps/api/window")
+    .then(({ getCurrentWindow }) => getCurrentWindow().setTheme(theme === "dark" ? "dark" : "light"))
+    .catch(() => {});
+}
+
+/** 模块加载即应用主题，避免首帧闪烁；main.tsx 也会调用 initTheme 兜底 */
+const initialTheme = loadTheme();
+if (typeof document !== "undefined") {
+  document.documentElement.setAttribute("data-theme", initialTheme);
 }
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  currentTheme: "dark",
-  terminalTheme: DARK_TERMINAL_THEME,
+  currentTheme: initialTheme,
+  terminalTheme: initialTheme === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME,
 
   setTheme: (theme) => {
-    document.documentElement.setAttribute("data-theme", theme);
-    // 同步 Tauri 原生窗口标题栏主题（动态导入避免浏览器环境初始化异常）
-    import("@tauri-apps/api/window")
-      .then(({ getCurrentWindow }) => getCurrentWindow().setTheme(theme === "dark" ? "dark" : "light"))
-      .catch(() => {});
+    applyTheme(theme);
     set({
       currentTheme: theme,
       terminalTheme: theme === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME,
     });
+  },
+
+  initTheme: () => {
+    const theme = useThemeStore.getState().currentTheme;
+    applyTheme(theme);
   },
 }));

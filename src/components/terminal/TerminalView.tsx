@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { TerminalTab } from "../../types";
 import { useTerminal } from "../../hooks/useTerminal";
 import { useTerminalWebSocket } from "../../hooks/useTerminalWebSocket";
 import { useTerminalDispatch } from "../../contexts/TerminalContext";
+import { useSshActions } from "../../contexts/SshContext";
 
 interface Props {
   tab: TerminalTab;
@@ -11,7 +12,9 @@ interface Props {
 export default function TerminalView({ tab }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dispatch = useTerminalDispatch();
+  const { connectServer } = useSshActions();
   const { terminal: terminalRef, fitAddon } = useTerminal(containerRef);
+  const [retrying, setRetrying] = useState(false);
 
   const { connectWs, sendData, disconnectWs } = useTerminalWebSocket(
     terminalRef,
@@ -85,6 +88,34 @@ export default function TerminalView({ tab }: Props) {
           <div className="text-2xl mb-3">⚠️</div>
           <p className="text-sm text-[var(--status-error)]">连接失败</p>
           <p className="text-xs mt-1">{tab.errorMessage || "未知错误"}</p>
+          <button
+            onClick={async () => {
+              if (!tab.serverId || retrying) return;
+              setRetrying(true);
+              dispatch({ type: "UPDATE_TAB_STATUS", id: tab.id, status: "connecting" });
+              try {
+                const res = await connectServer(tab.serverId);
+                if (res?.code === "0000") {
+                  connectWs();
+                } else {
+                  dispatch({
+                    type: "UPDATE_TAB_STATUS",
+                    id: tab.id,
+                    status: "error",
+                    errorMessage: res?.info || "重新连接失败",
+                  });
+                }
+              } finally {
+                setRetrying(false);
+              }
+            }}
+            disabled={retrying}
+            className="mt-4 rounded-md bg-[var(--accent-bg)] px-3.5 py-1.5 text-xs font-medium text-white
+                       hover:bg-[var(--accent-hover)] disabled:opacity-40"
+          >
+            {retrying ? "重连中…" : "重新连接"}
+          </button>
+          <p className="mt-2 text-[10px] text-[var(--text-tertiary)]">或关闭此标签后从左侧双击服务器重建会话</p>
         </div>
       )}
     </div>

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 import { LayoutPriority } from "allotment";
@@ -12,11 +11,18 @@ import ActivityBar from "./ActivityBar";
 import LeftSidebar from "./LeftSidebar";
 import TerminalPanel from "../terminal/TerminalPanel";
 import AiChatPanel from "../chat/AiChatPanel";
+import StatusBar from "./StatusBar";
+import CommandPalette from "./CommandPalette";
+import FileExplorer from "../files/FileExplorer";
+import ToastHost from "../ui/ToastHost";
 
 export default function MainLayout() {
   const leftVisible = useLayoutStore((s) => s.leftSidebarVisible);
   const rightVisible = useLayoutStore((s) => s.rightSidebarVisible);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsOpen = useLayoutStore((s) => s.settingsOpen);
+  const settingsTab = useLayoutStore((s) => s.settingsTab);
+  const openSettings = useLayoutStore((s) => s.openSettings);
+  const closeSettings = useLayoutStore((s) => s.closeSettings);
 
   return (
     <SshProvider>
@@ -25,7 +31,7 @@ export default function MainLayout() {
           <div className="h-screen w-screen flex flex-col bg-[var(--surface-app)] text-[var(--text-primary)]">
             <Header />
             <div className="flex flex-row flex-1 overflow-hidden">
-              <ActivityBar onOpenSettings={() => setSettingsOpen(true)} />
+              <ActivityBar onOpenSettings={() => openSettings("appearance")} />
               <Allotment proportionalLayout={false}>
                 <Allotment.Pane preferredSize={280} visible={leftVisible}>
                   <LeftSidebar />
@@ -38,8 +44,16 @@ export default function MainLayout() {
                 </Allotment.Pane>
               </Allotment>
             </div>
+            <StatusBar />
           </div>
-          <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+          <SettingsDialog
+            open={settingsOpen}
+            initialTab={settingsTab}
+            onClose={closeSettings}
+          />
+          <CommandPalette />
+          <FileExplorer />
+          <ToastHost />
         </ChatProvider>
       </TerminalProvider>
     </SshProvider>

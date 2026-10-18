@@ -6,8 +6,13 @@ export interface SshServer {
   port: number;
   username: string;
   authMethod: "password" | "key";     // ← 转换自 authType（1→password, 2→key）
-  password?: string;                   // 仅创建时发送，后端不返回
-  tags?: string[];                     // 仅前端本地使用，与服务端无关
+  password?: string;                   // 仅创建/更新时发送，后端不返回
+  // 主机管理元数据（后端 ssh_connection 新列）
+  groupName?: string;
+  tags?: string[];
+  remark?: string;
+  favorite?: boolean;
+  lastConnectedAt?: string;
   // 后端同步字段（不为 undefined 时表示已从服务端同步）
   status: number;                      // 0=未连接,1=已连接,2=连接中,3=连接失败
   userId: string;

@@ -1,6 +1,5 @@
-import { apiGet, apiPost, apiDelete } from "./client";
+import { apiGet, apiPost, apiPut, apiDelete } from "./client";
 
-/** 创建请求参数（与后端 SshConnectionCreateRequestDTO 对齐） */
 export interface CreateConnectionRequest {
   connectionName: string;
   host: string;
@@ -10,6 +9,10 @@ export interface CreateConnectionRequest {
   password?: string;
   privateKey?: string;
   userId: string;
+  groupName?: string;
+  tags?: string[];
+  remark?: string;
+  favorite?: boolean;
   // 高级配置（可选）
   connectTimeout?: number;
   keepaliveInterval?: number;
@@ -19,7 +22,26 @@ export interface CreateConnectionRequest {
   knownHosts?: string;
 }
 
-/** 连接响应 */
+export interface UpdateConnectionRequest {
+  connectionName?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  authType?: number;
+  password?: string;
+  privateKey?: string;
+  groupName?: string;
+  tags?: string[];
+  remark?: string;
+  favorite?: boolean;
+  connectTimeout?: number;
+  keepaliveInterval?: number;
+  startupCommand?: string;
+  compression?: number;
+  strictHostKeyCheck?: number;
+  knownHosts?: string;
+}
+
 export interface ConnectionResponse {
   connectionId: string;
   connectionName: string;
@@ -31,6 +53,11 @@ export interface ConnectionResponse {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  groupName?: string;
+  tags?: string[];
+  remark?: string;
+  favorite?: boolean;
+  lastConnectedAt?: string;
   connectTimeout?: number;
   keepaliveInterval?: number;
   startupCommand?: string;
@@ -39,8 +66,18 @@ export interface ConnectionResponse {
   knownHosts?: string;
 }
 
+export interface SshGroup {
+  name: string;
+  count: number;
+  favoriteCount: number;
+}
+
 export async function createConnection(data: CreateConnectionRequest) {
   return apiPost<ConnectionResponse>("/api/v1/ssh/connection/create", data);
+}
+
+export async function updateConnection(connectionId: string, data: UpdateConnectionRequest) {
+  return apiPut<ConnectionResponse>(`/api/v1/ssh/connection/${connectionId}`, data);
 }
 
 export async function connect(connectionId: string) {
@@ -52,7 +89,13 @@ export async function disconnect(connectionId: string) {
 }
 
 export async function listConnections(userId: string) {
-  return apiGet<ConnectionResponse[]>(`/api/v1/ssh/connection/list?userId=${encodeURIComponent(userId)}`);
+  return apiGet<ConnectionResponse[]>(
+    `/api/v1/ssh/connection/list?userId=${encodeURIComponent(userId)}`
+  );
+}
+
+export async function listGroups(userId: string) {
+  return apiGet<SshGroup[]>(`/api/v1/ssh/connection/groups?userId=${encodeURIComponent(userId)}`);
 }
 
 export async function getConnectionDetail(connectionId: string) {

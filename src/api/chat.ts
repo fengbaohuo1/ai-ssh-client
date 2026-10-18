@@ -32,6 +32,22 @@ export interface ChatModelInfo {
   contextSize?: number;
   /** 推理强度（chat-model.reasoning-effort，未配置为空） */
   reasoningEffort?: string;
+  /** 采样温度 */
+  temperature?: number;
+  /** 单次回复最大 token */
+  maxTokens?: number;
+  /** 核采样 top-p */
+  topP?: number;
+}
+
+/** 运行期治理参数（只读展示） */
+export interface AgentRuntimeInfo {
+  maxLlmCalls?: number;
+  compactEnabled?: boolean;
+  compactTokenThreshold?: number;
+  compactEventRetentionSize?: number;
+  contextTokenBudget?: number;
+  coldStartReplayBudgetChars?: number;
 }
 
 export interface AgentWorkflowInfo {
@@ -64,6 +80,12 @@ export interface AgentRoleInfo {
   delegates?: string[];
   /** 是否为编排者（有子智能体的智能体不再持有 executeCommand） */
   orchestrator?: boolean;
+  /** 是否只读（不挂载 writeRemoteFile） */
+  readOnly?: boolean;
+  /** 该角色实际可用的内置工具 */
+  tools?: string[];
+  /** 指令预览（截断） */
+  instructionPreview?: string;
 }
 
 /** 智能体配置（后端 query_ai_agent_config_list：配置文件真实信息回传，apiKey 不下发） */
@@ -83,6 +105,12 @@ export interface AgentConfig {
   skills?: SkillInfo[];
   /** runner.plugin-name-list */
   plugins?: string[];
+  /** 内置工具清单（命令/文件/派发） */
+  builtinTools?: string[];
+  /** 运行期治理参数 */
+  runtime?: AgentRuntimeInfo;
+  /** 配置健康检查告警 */
+  configWarnings?: string[];
 }
 
 /** 上下文窗口格式化：128000 → "128K"；非整千 → 千分位 */

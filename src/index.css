@@ -2,47 +2,58 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    /* ===== App Surfaces — warmer dark, easier on eyes ===== */
-    --surface-app: #1b1c1f;
-    --surface-panel: #222327;
-    --surface-hover: #2c2d32;
-    --surface-active: #0d4a7a;
-    --surface-input: #2c2d32;
-    --surface-dropdown: #25262a;
-    --surface-tab-active: #1b1c1f;
-    --surface-tab-inactive: #26272b;
-    --surface-scrollbar: rgba(130, 130, 140, 0.32);
-    --surface-scrollbar-hover: rgba(130, 130, 140, 0.52);
+    /* ===== App Surfaces — cooler, lower-contrast dark ===== */
+    --surface-app: #14161b;
+    --surface-panel: #1b1e25;
+    --surface-hover: #262a33;
+    --surface-active: #173a5e;
+    --surface-input: #242831;
+    --surface-dropdown: #1f232b;
+    --surface-elevated: #21252d;
+    --surface-tab-active: #14161b;
+    --surface-tab-inactive: #1f232b;
+    --surface-scrollbar: rgba(130, 140, 155, 0.30);
+    --surface-scrollbar-hover: rgba(140, 152, 170, 0.50);
 
     /* ===== Activity Bar ===== */
-    --activity-bar-bg: #292a2e;
-    --activity-bar-text: #7b7c81;
-    --activity-bar-active: #e8e8ec;
-    --activity-bar-hover: #c0c0c8;
+    --activity-bar-bg: #101216;
+    --activity-bar-text: #717886;
+    --activity-bar-active: #e8ebf1;
+    --activity-bar-hover: #c3c9d4;
 
     /* ===== Header / Title Bar ===== */
-    --header-bg: #2d2e32;
-    --header-text: #d0d0d8;
+    --header-bg: #1a1d23;
+    --header-text: #d3d8e2;
 
     /* ===== Text ===== */
-    --text-primary: #d0d0d8;
-    --text-secondary: #8b8c91;
-    --text-tertiary: #636469;
+    --text-primary: #dde1e8;
+    --text-secondary: #9299a6;
+    --text-tertiary: #646b78;
     --text-accent: #ffffff;
-    --text-link: #4a9eff;
+    --text-link: #6aa0ff;
 
     /* ===== Borders ===== */
-    --border-default: #343539;
-    --border-subtle: #2a2b2f;
-    --border-focus: #4a9eff;
-    --border-accent: #4a9eff;
+    --border-default: #2d323c;
+    --border-subtle: #232730;
+    --border-focus: #4c8dff;
+    --border-accent: #4c8dff;
 
     /* ===== Accent / Interactive ===== */
-    --accent-bg: #4a9eff;
-    --accent-hover: #5babff;
-    --accent-selection: #0d4a7a;
+    --accent-bg: #4c8dff;
+    --accent-hover: #6aa0ff;
+    --accent-2: #22c7a9;
+    --accent-selection: #173a5e;
     --accent-text: #ffffff;
-    --focus-ring: 0 0 0 1px #4a9eff;
+    --focus-ring: 0 0 0 1px #4c8dff;
+    --accent-gradient: linear-gradient(135deg, #4c8dff 0%, #7c5ce7 55%, #22c7a9 130%);
+
+    /* ===== Elevation / Radius ===== */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.38);
+    --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.48);
+    --radius-sm: 6px;
+    --radius-md: 9px;
+    --radius-lg: 13px;
 
     /* ===== Status Colors ===== */
     --status-success: #3fb950;
@@ -52,14 +63,14 @@
     --status-danger-hover: #490202;
 
     /* ===== AI Thinking Indicator ===== */
-    --ai-glow-1: #4a9eff;
+    --ai-glow-1: #4c8dff;
     --ai-glow-2: #7c5ce7;
 
     /* ===== Terminal Foreground / Background ===== */
-    --terminal-bg: #1b1c1f;
+    --terminal-bg: #14161b;
     --terminal-fg: #d4d4d8;
     --terminal-cursor: #ffffff;
-    --terminal-cursor-accent: #1b1c1f;
+    --terminal-cursor-accent: #14161b;
     --terminal-selection-bg: #264f78;
 
     /* ===== Terminal ANSI Colors ===== */
@@ -84,46 +95,57 @@
   /* Future light theme override */
   [data-theme="light"] {
     /* ===== App Surfaces ===== */
-    --surface-app: #f5f5f5;
+    --surface-app: #f4f6f9;
     --surface-panel: #ffffff;
-    --surface-hover: #e8e8e8;
-    --surface-active: #d0e4f7;
-    --surface-input: #f0f0f0;
+    --surface-hover: #eef1f5;
+    --surface-active: #dbeafe;
+    --surface-input: #f1f3f7;
     --surface-dropdown: #ffffff;
+    --surface-elevated: #ffffff;
     --surface-tab-active: #ffffff;
-    --surface-tab-inactive: #ececec;
-    --surface-scrollbar: rgba(100, 100, 100, 0.28);
-    --surface-scrollbar-hover: rgba(100, 100, 100, 0.45);
+    --surface-tab-inactive: #eceff4;
+    --surface-scrollbar: rgba(100, 110, 125, 0.26);
+    --surface-scrollbar-hover: rgba(100, 110, 125, 0.44);
 
     /* ===== Activity Bar ===== */
-    --activity-bar-bg: #e8e8e8;
-    --activity-bar-text: #616161;
-    --activity-bar-active: #1a1a1a;
-    --activity-bar-hover: #333333;
+    --activity-bar-bg: #e9edf3;
+    --activity-bar-text: #5d6673;
+    --activity-bar-active: #111827;
+    --activity-bar-hover: #26303d;
 
     /* ===== Header / Title Bar ===== */
-    --header-bg: #ededed;
-    --header-text: #1a1a1a;
+    --header-bg: #eef1f6;
+    --header-text: #1a1f29;
 
     /* ===== Text ===== */
-    --text-primary: #1a1a1a;
-    --text-secondary: #616161;
-    --text-tertiary: #8a8a8a;
-    --text-accent: #1a1a1a;
-    --text-link: #0066cc;
+    --text-primary: #1a1f29;
+    --text-secondary: #5a6472;
+    --text-tertiary: #8a93a0;
+    --text-accent: #111827;
+    --text-link: #1f6feb;
 
     /* ===== Borders ===== */
-    --border-default: #d4d4d4;
-    --border-subtle: #e8e8e8;
-    --border-focus: #0066cc;
-    --border-accent: #0066cc;
+    --border-default: #d8dee8;
+    --border-subtle: #e7ebf1;
+    --border-focus: #1f6feb;
+    --border-accent: #1f6feb;
 
     /* ===== Accent / Interactive ===== */
-    --accent-bg: #0066cc;
-    --accent-hover: #0055aa;
-    --accent-selection: #d0e4f7;
+    --accent-bg: #1f6feb;
+    --accent-hover: #1a5fd0;
+    --accent-2: #0d9488;
+    --accent-selection: #dbeafe;
     --accent-text: #ffffff;
-    --focus-ring: 0 0 0 1px #0066cc;
+    --focus-ring: 0 0 0 1px #1f6feb;
+    --accent-gradient: linear-gradient(135deg, #1f6feb 0%, #6d4aff 55%, #0d9488 130%);
+
+    /* ===== Elevation / Radius ===== */
+    --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.08);
+    --shadow-md: 0 6px 20px rgba(20, 30, 50, 0.10);
+    --shadow-lg: 0 18px 50px rgba(20, 30, 50, 0.16);
+    --radius-sm: 6px;
+    --radius-md: 9px;
+    --radius-lg: 13px;
 
     /* ===== Status Colors ===== */
     --status-success: #1a7f37;
@@ -133,7 +155,7 @@
     --status-danger-hover: #ffd4d4;
 
     /* ===== AI Thinking Indicator ===== */
-    --ai-glow-1: #0066cc;
+    --ai-glow-1: #1f6feb;
     --ai-glow-2: #5c3fbe;
 
     /* ===== Terminal Foreground / Background ===== */
@@ -161,4 +183,114 @@
     --terminal-bright-cyan: #29b8db;
     --terminal-bright-white: #f5f5f5;
   }
+}
+
+@layer base {
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--surface-app);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background: var(--accent-selection);
+    color: var(--text-primary);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  code,
+  kbd,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* ===== Animations ===== */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ===== Scrollbar (thin, theme-aware) ===== */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-scrollbar) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--surface-scrollbar);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-scrollbar-hover);
+  background-clip: padding-box;
+}
+
+/* ===== Small reusable primitives ===== */
+.surface-card {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.accent-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hairline {
+  height: 1px;
+  background: var(--border-subtle);
 }

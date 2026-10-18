@@ -109,6 +109,11 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
             上下文 {formatContextSize(contextSize)}
           </span>
         ) : null}
+        {agent?.agentName ? (
+          <span className="min-w-0 truncate text-[10px] text-[var(--text-tertiary)]" title={agent.agentName}>
+            · {agent.agentName}
+          </span>
+        ) : null}
         {agent?.chatModel?.baseUrl ? (
           <span
             className="text-[10px] text-[var(--text-tertiary)] truncate"

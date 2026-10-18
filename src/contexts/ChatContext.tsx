@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { ChatMessage, Conversation, StepEvent, UsageInfo } from "../types";
 import { listAgents, createSession, chatStreamUrl } from "../api/chat";
+import { authHeaders } from "../api/client";
 import type { AgentConfig } from "../api/chat";
 
 // ===== Persistence =====
@@ -596,7 +597,7 @@ export function useChatActions() {
 
         const response = await fetch(chatStreamUrl(), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(body),
           signal: controller.signal,
         });
