@@ -59,10 +59,14 @@ export default function AgentConfigEditor() {
         return;
       }
       setSavedContent(content);
-      toast.success(
-        "Agent 配置已保存",
-        res.data?.restartRequired ? "保存后重启应用生效" : undefined
-      );
+      if (res.data?.applied === false) {
+        toast.error(
+          "配置已保存，但热重装失败",
+          res.data.applyMessage || "当前继续使用旧装配，修复后重新保存即可"
+        );
+      } else {
+        toast.success("Agent 配置已保存并立即生效", "新对话轮次使用新装配");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -145,7 +149,7 @@ export default function AgentConfigEditor() {
       {/* 操作区 */}
       <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-3">
         <p className="text-[10px] leading-relaxed text-[var(--text-tertiary)]">
-          {dirty ? "有未保存的修改。" : "没有未保存的修改。"}保存后需重启应用生效。
+          {dirty ? "有未保存的修改。" : "没有未保存的修改。"}保存后立即热重装（失败保留旧装配并提示）。
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <button

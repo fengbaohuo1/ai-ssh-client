@@ -192,10 +192,14 @@ export default function ModelSettings() {
             }
           : prev
       );
-      toast.success(
-        "模型配置已保存",
-        res.data?.restartRequired ? "保存后重启应用生效" : undefined
-      );
+      if (res.data?.applied === false) {
+        toast.error(
+          "配置已保存，但热重装失败",
+          res.data.applyMessage || "当前继续使用旧装配，修复后重新保存即可"
+        );
+      } else {
+        toast.success("模型配置已保存并立即生效", "新对话轮次将使用新模型");
+      }
     } catch (err) {
       toast.error("保存模型配置失败", err instanceof Error ? err.message : String(err));
     } finally {
@@ -252,7 +256,7 @@ export default function ModelSettings() {
         ) : null}
         <div className="mt-1.5 flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-info)]" />
-          保存后重启应用生效
+          保存后立即热重装，无需重启
         </div>
       </div>
 
@@ -402,7 +406,7 @@ export default function ModelSettings() {
       {/* 操作区 */}
       <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-3">
         <p className="text-[10px] leading-relaxed text-[var(--text-tertiary)]">
-          保存后需重启应用生效。API Key 只写不回显。
+          保存后立即热重装（失败会保留旧装配并提示）。API Key 只写不回显。
         </p>
         <button
           onClick={() => void handleSave()}

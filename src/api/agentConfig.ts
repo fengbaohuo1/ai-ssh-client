@@ -1,4 +1,4 @@
-import { apiGet, apiPut, type ApiResponse } from "./client";
+import { apiGet, apiPost, apiPut, type ApiResponse } from "./client";
 
 /** 后端支持的模型通道（GET /api/v1/agent/config/model -> providers[]） */
 export interface AgentProviderOption {
@@ -47,9 +47,14 @@ export interface AgentModelConfigInput {
   maxTokens?: number;
 }
 
-/** 配置写入结果：是否必须重启应用才生效 */
+/** 配置写入结果：保存后是否已热重装生效（v3.1 起无需重启） */
 export interface AgentConfigWriteResult {
-  restartRequired: boolean;
+  /** 兼容旧字段：热重装上线后恒为 false，不再需要重启 */
+  restartRequired?: boolean;
+  /** 是否已热重装生效；false 表示文件已保存但装配失败（旧装配继续服务） */
+  applied?: boolean;
+  /** 生效/失败说明（可直接展示给用户） */
+  applyMessage?: string;
 }
 
 /** Agent 配置文件内容 */
@@ -80,4 +85,9 @@ export async function saveAgentConfigFile(
   content: string
 ): Promise<ApiResponse<AgentConfigWriteResult>> {
   return apiPut<AgentConfigWriteResult>("/api/v1/agent/config/file", { content });
+}
+
+/** 手动热重装：重新读取磁盘配置并装配智能体（改过配置文件、或上次热重装失败后重试用） */
+export async function reloadAgentConfig(): Promise<ApiResponse<AgentConfigWriteResult>> {
+  return apiPost<AgentConfigWriteResult>("/api/v1/agent/config/reload");
 }
