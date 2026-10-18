@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { useChatActions, useChatState } from "../../contexts/ChatContext";
 import { useSshState } from "../../contexts/SshContext";
 import { baseUrlHost, formatContextSize } from "../../api/chat";
+import { toast } from "../../stores/toastStore";
 
 export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
   const [input, setInput] = useState("");
@@ -17,6 +18,10 @@ export default function AiChatInput({ isStreaming }: { isStreaming: boolean }) {
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming || sending) return;
+    // 未绑定服务器时提前提示：否则模型会在"没有终端会话"的状态下白跑几轮工具
+    if (!activeConnectionId) {
+      toast.warning("未绑定服务器", "请先在顶部选择并连接一台服务器，再让 AI 执行命令");
+    }
     sendMessage(trimmed, activeConnectionId ?? undefined);
     setInput("");
     if (textareaRef.current) {

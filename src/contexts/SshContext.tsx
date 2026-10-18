@@ -14,6 +14,33 @@ import {
 import { readAuth } from "../api/client";
 import { toast } from "../stores/toastStore";
 
+// ===== 当前绑定服务器持久化 =====
+// 为什么需要：AI 对话的"绑定哪台服务器"只存在内存里，Tauri 窗口重载/应用重开后 activeConnectionId
+// 归空，整轮对话都会被后端判为"未绑定服务器"，模型只能在未绑定状态下空转。
+// 这里把用户显式选择的服务器记到 localStorage，启动时恢复（服务器还在就自动重连）。
+const ACTIVE_CONNECTION_STORAGE_KEY = "ai-ssh.active-connection-id";
+
+function readPersistedActiveConnection(): string | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_CONNECTION_STORAGE_KEY);
+    return raw && raw.trim() ? raw.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistActiveConnection(connectionId: string | null) {
+  try {
+    if (connectionId) {
+      localStorage.setItem(ACTIVE_CONNECTION_STORAGE_KEY, connectionId);
+    } else {
+      localStorage.removeItem(ACTIVE_CONNECTION_STORAGE_KEY);
+    }
+  } catch {
+    // localStorage 不可用时不影响主流程
+  }
+}
+
 // ===== State & Actions =====
 interface SshState {
   servers: SshServer[];
@@ -41,7 +68,7 @@ type SshAction =
 
 const initialState: SshState = {
   servers: [],
-  activeConnectionId: null,
+  activeConnectionId: readPersistedActiveConnection(),
   filterText: "",
   editingServer: null,
   isDialogOpen: false,
@@ -128,8 +155,38 @@ export function SshProvider({ children }: { children: ReactNode }) {
       try {
         const res = await listConnections(readAuth().userId);
         if (res.code === "0000" && res.data) {
-          dispatch({ type: "SET_SERVERS", servers: res.data.map(mapResponseToServer) });
+          const servers = res.data.map(mapResponseToServer);
+          dispatch({ type: "SET_SERVERS", servers });
           dispatch({ type: "SET_ERROR", error: null });
+
+          // 恢复上次绑定的服务器：还在列表里就保持选中；已断开则尝试自动重连，
+          // 这样重开窗口后 AI 对话不会因为"未绑定服务器"而空转。
+          const persisted = readPersistedActiveConnection();
+          if (persisted) {
+            const target = servers.find((s) => s.id === persisted);
+            if (!target) {
+              dispatch({ type: "SET_ACTIVE_CONNECTION", connectionId: null });
+              persistActiveConnection(null);
+            } else {
+              // 无条件重连一次：后端重启后 DB 里的 status 可能还是"已连接"，但 SSH 会话已经没了，
+              // 只回填 activeConnectionId 会让 AI 拿到一个没有底层会话的 connectionId。
+              try {
+                const reconnect = await apiConnect(persisted);
+                if (reconnect.code === "0000") {
+                  dispatch({ type: "SET_SERVER_STATUS", id: persisted, status: 1 });
+                  if (target.status !== 1) {
+                    toast.info("已恢复上次的服务器连接", `${target.username}@${target.host}`);
+                  }
+                } else {
+                  dispatch({ type: "SET_SERVER_STATUS", id: persisted, status: 3 });
+                  toast.warning("上次的服务器未连接", "请重新连接服务器，再让 AI 执行命令");
+                }
+              } catch {
+                dispatch({ type: "SET_SERVER_STATUS", id: persisted, status: 3 });
+                toast.warning("上次的服务器未连接", "请重新连接服务器，再让 AI 执行命令");
+              }
+            }
+          }
         } else {
           const message = res.info || "获取服务器列表失败";
           dispatch({ type: "SET_ERROR", error: message });
@@ -141,6 +198,11 @@ export function SshProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, []);
+
+  // activeConnectionId 变化时持久化（用户切换/断开/删除服务器都会走到这里）
+  useEffect(() => {
+    persistActiveConnection(state.activeConnectionId);
+  }, [state.activeConnectionId]);
 
   return (
     <SshStateContext.Provider value={state}>

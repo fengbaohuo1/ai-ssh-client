@@ -50,6 +50,7 @@ ai-ssh-client/
 - **打包**：`scripts/bundle-backend.ps1`（Maven + jlink，`ALL-MODULE-PATH`）产出 jar 与约 78 MB JRE；`npm run backend:bundle` / `npm run desktop:build`；`tauri.conf.json` 的 `beforeBuildCommand` 已串上 bundle。
 - **配置页**：设置 → 模型（`ModelSettings.tsx`，写后端 `llm.yml` 覆盖层，API Key 只写不回显）/ Agent 配置（`AgentConfigEditor.tsx`，直接编辑 `agent.yml`，后端校验 + `.bak` 备份）；接口封装在 `api/agentConfig.ts`。保存成功后后端立即热重装智能体，**无需重启**；返回 `applied=false` 时前端提示失败原因（旧装配继续服务）。
 - **智能体能力展示（v3.2 同步）**：`api/chat.ts` 的 `AgentRoleInfo` 增加 `delegateMode`（`hybrid` / `dispatch-only` / null）；`components/config/AgentConfigSidebar.tsx` 角色卡片据此显示「可直连 / 仅派发」徽标（hybrid=可直接执行命令+可派发，dispatch-only=父智能体不持有 executeCommand），只读徽标补充"executeCommand 会拦截写操作"的说明。后端工具语义变化（`AgentServiceController#toolsFor`）时必须同步这里。
+- **当前服务器绑定自愈（v3.3 同步）**：`contexts/SshContext.tsx` 把 `activeConnectionId` 持久化到 `localStorage`（key `ai-ssh.active-connection-id`），刷新/重启后自动恢复并在后端重连一次（后端重启后 DB 里的"已连接"状态不可信）；恢复失败 `toast.warning("上次的服务器未连接", ...)`，恢复成功且原状态非已连接时 `toast.info("已恢复上次的服务器连接", ...)`。`AiChatInput.tsx` 在未绑定服务器时发送前 `toast.warning("未绑定服务器", ...)`（仍发送，后端会注入未绑定提示并回退到会话上次绑定的连接）。对话请求体 `terminalSessionId` 为空时后端会自行兜底，前端不要为"恢复绑定"做额外拼装。
 
 ## 关键设计决策
 
