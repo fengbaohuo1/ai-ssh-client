@@ -579,7 +579,7 @@ Expected: 返回已有连接列表（腾讯云服务器等）
 ```bash
 curl -s -X POST http://localhost:1420/api/v1/ssh/connection/create \
   -H "Content-Type: application/json" \
-  -d '{"connectionName":"test","host":"106.54.3.66","port":22,"username":"root","authType":1,"password":"test123","userId":"default"}'
+  -d '{"connectionName":"test","host":"192.0.2.10","port":22,"username":"root","authType":1,"password":"test123","userId":"default"}'
 ```
 
 Expected: 返回新创建的 connection 信息
