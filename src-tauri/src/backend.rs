@@ -85,9 +85,11 @@ fn set_info(app: &AppHandle, status: &str, base_url: &str, message: &str) {
 
 /// 应用数据目录（Windows: %APPDATA%\jianingfei.site.aissh）
 fn app_data_dir(app: &AppHandle) -> PathBuf {
-    app.path()
-        .app_data_dir()
-        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    normalize_path(
+        app.path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+    )
 }
 
 /// setup 阶段先给出一个 starting 快照，前端据此显示启动页
@@ -103,18 +105,34 @@ pub fn initial_info(app: &AppHandle) -> BackendInfo {
     }
 }
 
+/// Tauri 在 Windows 上返回的路径可能带 `\\?\` verbatim 前缀，而 JDK 的 `java -jar`
+/// 打不开这种路径（表现是「尝试打开文件…时出现意外错误」），安装版因此起不来。
+/// 这里统一还原成普通绝对路径：`\\?\C:\x` → `C:\x`，`\\?\UNC\srv\share` → `\\srv\share`。
+fn normalize_path(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy().into_owned();
+    if let Some(rest) = text.strip_prefix(r"\\?\") {
+        if let Some(unc) = rest.strip_prefix(r"UNC\") {
+            return PathBuf::from(format!(r"\\{unc}"));
+        }
+        return PathBuf::from(rest);
+    }
+    path
+}
+
 /// release 下从 resource 目录查找；debug 下从 src-tauri/resources 查找
 fn find_resource(app: &AppHandle, relative: &str) -> Option<PathBuf> {
     if let Ok(resource_dir) = app.path().resource_dir() {
-        let candidate = resource_dir.join(relative);
+        let candidate = normalize_path(resource_dir.join(relative));
         if candidate.exists() {
             return Some(candidate);
         }
     }
     if cfg!(debug_assertions) {
-        let candidate = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("resources")
-            .join(relative);
+        let candidate = normalize_path(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("resources")
+                .join(relative),
+        );
         if candidate.exists() {
             return Some(candidate);
         }
